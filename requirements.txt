@@ -10,3 +10,4 @@ youtube_dl
 tenacity>=8.0.0
 aiohttp>=3.8.0
 cachetools
+aiofiles

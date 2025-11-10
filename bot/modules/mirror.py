@@ -3,6 +3,7 @@ import os
 import re
 import time
 
+import aiofiles
 import aiohttp
 from pyrogram import Client, filters
 from tenacity import AsyncRetrying, RetryError, retry_if_exception_type, stop_after_attempt, wait_exponential
@@ -84,11 +85,11 @@ async def mirror_handler(client, message):
                 except ValueError:
                     total_size = 0
                 await update_progress("下载中", "📥", 0, total_size, 0)
-                with open(temp_path, "wb") as file:
+                async with aiofiles.open(temp_path, "wb") as file:
                     async for chunk in response.content.iter_chunked(1024 * 64):
                         if not chunk:
                             continue
-                        await asyncio.to_thread(file.write, chunk)
+                        await file.write(chunk)
                         downloaded += len(chunk)
                         now = time.monotonic()
                         elapsed = now - download_start
