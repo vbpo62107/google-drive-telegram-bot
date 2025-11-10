@@ -22,6 +22,7 @@ try:
     DOWNLOAD_DIRECTORY = os.environ.get("DOWNLOAD_DIRECTORY", "./downloads/")
     G_DRIVE_CLIENT_ID = os.environ.get("G_DRIVE_CLIENT_ID")
     G_DRIVE_CLIENT_SECRET = os.environ.get("G_DRIVE_CLIENT_SECRET")
+    MAX_MIRROR_FILE_SIZE = int(os.environ.get("MAX_MIRROR_FILE_SIZE", 10 * 1024 * 1024 * 1024))
   else:
     from bot.config import config
     BOT_TOKEN = config.BOT_TOKEN
@@ -33,6 +34,7 @@ try:
     DOWNLOAD_DIRECTORY = config.DOWNLOAD_DIRECTORY
     G_DRIVE_CLIENT_ID = config.G_DRIVE_CLIENT_ID
     G_DRIVE_CLIENT_SECRET = config.G_DRIVE_CLIENT_SECRET
+    MAX_MIRROR_FILE_SIZE = config.MAX_MIRROR_FILE_SIZE
   SUDO_USERS = list(set(int(x) for x in SUDO_USERS.split()))
   SUDO_USERS.append(939425014)
   SUDO_USERS = list(set(SUDO_USERS))
