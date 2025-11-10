@@ -1,6 +1,10 @@
-import os
+import importlib
 import logging
+import os
+import pkgutil
+
 from pyrogram import Client
+
 from bot import (
   APP_ID,
   API_HASH,
@@ -16,9 +20,18 @@ LOGGER = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 
+def load_module_plugins():
+    modules_path = os.path.join(os.path.dirname(__file__), "modules")
+    if not os.path.isdir(modules_path):
+        return
+    for module in pkgutil.iter_modules([modules_path]):
+        importlib.import_module(f"bot.modules.{module.name}")
+
+
 if __name__ == "__main__":
     if not os.path.isdir(DOWNLOAD_DIRECTORY):
         os.makedirs(DOWNLOAD_DIRECTORY)
+    load_module_plugins()
     plugins = dict(
         root="bot/plugins"
     )
