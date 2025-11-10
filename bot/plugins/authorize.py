@@ -9,6 +9,7 @@ from oauth2client.client import OAuth2WebServerFlow, FlowExchangeError
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from bot.helpers.sql_helper import gDriveDB
+from bot.modules.drive_helper import invalidate_drive_instance
 from bot.config import BotCommands
 from bot.helpers.utils import CustomFilters
 
@@ -25,6 +26,7 @@ async def _auth(client, message):
   if creds is not None:
     creds.refresh(Http())
     gDriveDB._set(user_id, creds)
+    invalidate_drive_instance(user_id)
     await message.reply_text(Messages.ALREADY_AUTH, quote=True)
   else:
     global flow
@@ -52,6 +54,7 @@ def _revoke(client, message):
   user_id = message.from_user.id
   try:
     gDriveDB._clear(user_id)
+    invalidate_drive_instance(user_id)
     LOGGER.info(f'Revoked:{user_id}')
     message.reply_text(Messages.REVOKED, quote=True)
   except Exception as e:
@@ -72,6 +75,7 @@ async def _token(client, message):
         creds = flow.step2_exchange(message.text)
         gDriveDB._set(user_id, creds)
         LOGGER.info(f'AuthSuccess: {user_id}')
+        invalidate_drive_instance(user_id)
         await sent_message.edit(Messages.AUTH_SUCCESSFULLY)
         flow = None
       except FlowExchangeError:

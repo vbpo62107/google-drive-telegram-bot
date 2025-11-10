@@ -1,3 +1,4 @@
+import atexit
 import importlib
 import logging
 import os
@@ -11,6 +12,7 @@ from bot import (
   BOT_TOKEN,
   DOWNLOAD_DIRECTORY
   )
+from bot.modules.drive_helper import cleanup_drive_instances
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -18,6 +20,8 @@ logging.basicConfig(
 )
 LOGGER = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
+
+atexit.register(cleanup_drive_instances)
 
 
 def load_module_plugins():
