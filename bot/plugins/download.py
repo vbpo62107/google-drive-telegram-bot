@@ -1,5 +1,6 @@
 import asyncio
 import os
+from pathlib import PurePath
 from pyrogram import Client, filters
 from bot.helpers.sql_helper import gDriveDB, idsDB
 from bot.helpers.utils import CustomFilters, humanbytes
@@ -29,15 +30,28 @@ async def _download(client, message):
       msg = await asyncio.to_thread(drive.clone, link)
       await sent_message.edit(msg)
     else:
+      download_root = os.path.abspath(DOWNLOAD_DIRECTORY)
       if '|' in link:
         link, filename = link.split('|', 1)
         link = link.strip()
         filename = filename.strip()
-        dl_path = os.path.join(f'{DOWNLOAD_DIRECTORY}/{filename}')
+        filename = PurePath(filename).name
+        filename = ''.join(ch for ch in filename if ch.isprintable() and ch not in {'/', '\\'})
+        if not filename or any(ord(ch) < 32 for ch in filename) or filename in {'.', '..'}:
+          await sent_message.edit(Messages.INVALID_FILENAME)
+          return
+        dl_path = os.path.abspath(os.path.join(download_root, filename))
+        try:
+          if os.path.commonpath([download_root, dl_path]) != download_root:
+            await sent_message.edit(Messages.INVALID_FILENAME)
+            return
+        except ValueError:
+          await sent_message.edit(Messages.INVALID_FILENAME)
+          return
       else:
         link = link.strip()
         filename = os.path.basename(link)
-        dl_path = DOWNLOAD_DIRECTORY
+        dl_path = download_root
       LOGGER.info(f'Download:{user_id}: {link}')
       await sent_message.edit(Messages.DOWNLOADING.format(link))
       result, file_path = await asyncio.to_thread(download_file, link, dl_path)
