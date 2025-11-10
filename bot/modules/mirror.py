@@ -8,11 +8,15 @@ import aiohttp
 from pyrogram import Client, filters
 from tenacity import AsyncRetrying, RetryError, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from bot import DOWNLOAD_DIRECTORY, SUDO_USERS
+from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS
 from bot.config import Messages
 from bot.helpers.sql_helper import gDriveDB
 from bot.helpers.utils import extract_filename_from_url, format_bytes, format_elapsed_eta, format_speed, render_progress_bar
 from bot.modules.drive_helper import get_drive_instance
+
+
+class FileTooLargeError(Exception):
+    pass
 
 
 @Client.on_message(filters.command("mirror") & filters.private)
@@ -84,13 +88,22 @@ async def mirror_handler(client, message):
                     total_size = int(length) if length else 0
                 except ValueError:
                     total_size = 0
+                if total_size and total_size > MAX_MIRROR_FILE_SIZE:
+                    raise FileTooLargeError(
+                        f"文件大小 {format_bytes(total_size)} 超过上限 {format_bytes(MAX_MIRROR_FILE_SIZE)}"
+                    )
                 await update_progress("下载中", "📥", 0, total_size, 0)
                 async with aiofiles.open(temp_path, "wb") as file:
                     async for chunk in response.content.iter_chunked(1024 * 64):
                         if not chunk:
                             continue
+                        projected_total = downloaded + len(chunk)
+                        if projected_total > MAX_MIRROR_FILE_SIZE:
+                            raise FileTooLargeError(
+                                f"下载数据超过上限 {format_bytes(MAX_MIRROR_FILE_SIZE)}"
+                            )
                         await file.write(chunk)
-                        downloaded += len(chunk)
+                        downloaded = projected_total
                         now = time.monotonic()
                         elapsed = now - download_start
                         if downloaded == total_size or now - last_download_update >= 1.5:

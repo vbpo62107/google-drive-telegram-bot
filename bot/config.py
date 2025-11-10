@@ -8,6 +8,7 @@ class config:
     DOWNLOAD_DIRECTORY = "./downloads/"
     G_DRIVE_CLIENT_ID = "821280247929-nha7q269n9aivh5cfi5ntd9ffs620q9i.apps.googleusercontent.com"
     G_DRIVE_CLIENT_SECRET = "_qp-RE9b6R8oWyVUwdAKl6pU"
+    MAX_MIRROR_FILE_SIZE = 10 * 1024 * 1024 * 1024
 
 
 class BotCommands:
