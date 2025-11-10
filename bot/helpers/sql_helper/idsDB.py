@@ -17,10 +17,10 @@ ParentID.__table__.create(checkfirst=True)
 
 def search_parent(chat_id):
     try:
-        return SESSION.query(ParentID).filter(ParentID.chat_id == chat_id).one().parent_id
-    except:
-        return 'root'
+        parent_id = SESSION.query(ParentID).with_entities(ParentID.parent_id).filter_by(chat_id=chat_id).scalar()
+        return parent_id if parent_id is not None else 'root'
     finally:
+        SESSION.rollback()
         SESSION.close()
 
 
