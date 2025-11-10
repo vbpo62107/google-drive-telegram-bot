@@ -57,6 +57,8 @@ class Messages:
     UPLOADED_SUCCESSFULLY = "✅ **上传成功.**\n[{}]({}) __({})__"
     
     DOWNLOAD_ERROR = "❗**下载失败**\n{}\n__Link - {}__"
+
+    INVALID_FILENAME = "❗ **无效的文件名**\n__请提供有效的文件名.__"
     
     DOWNLOADING = "📥 **下载文件...\nLink:** ```{}```"
     
