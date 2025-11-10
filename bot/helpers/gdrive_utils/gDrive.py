@@ -11,7 +11,7 @@ from urllib.parse import parse_qs
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
-from tenacity import (RetryError, Retrying, before_log, retry_if_exception_type,
+from tenacity import (RetryError, Retrying, before_log, retry, retry_if_exception_type,
     stop_after_attempt, wait_exponential)
 
 from bot import LOGGER
