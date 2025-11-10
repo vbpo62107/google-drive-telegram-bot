@@ -1,19 +1,23 @@
-import os
-import re
+import asyncio
+import inspect
 import json
 import logging
-from bot import LOGGER
-from time import sleep
-from tenacity import *
+import os
+import re
 import urllib.parse as urlparse
-from bot.config import Messages
 from mimetypes import guess_type
 from urllib.parse import parse_qs
-from bot.helpers.utils import humanbytes
+
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
+from tenacity import (RetryError, Retrying, before_log, retry_if_exception_type,
+    stop_after_attempt, wait_exponential)
+
+from bot import LOGGER
+from bot.config import Messages
 from bot.helpers.sql_helper import gDriveDB, idsDB
+from bot.helpers.utils import humanbytes, format_bytes
 
 
 logging.getLogger('googleapiclient.discovery').setLevel(logging.ERROR)
@@ -168,6 +172,87 @@ class GoogleDrive:
             return f"**ERROR:** {reason}"
       except Exception as e:
         return f"**ERROR:** ```{e}```"
+
+  async def upload_file_with_progress(self, file_path, mimeType=None, progress_callback=None):
+      mime_type = mimeType if mimeType else guess_type(file_path)[0]
+      mime_type = mime_type if mime_type else "text/plain"
+      media_body = MediaFileUpload(
+          file_path,
+          mimetype=mime_type,
+          chunksize=150 * 1024 * 1024,
+          resumable=True
+      )
+      filename = os.path.basename(file_path)
+      total_size = os.path.getsize(file_path)
+      body = {
+          "name": filename,
+          "description": "Uploaded using @UploadGdriveBot",
+          "mimeType": mime_type,
+      }
+      body["parents"] = [self.__parent_id]
+      loop = asyncio.get_running_loop()
+      request = self.__service.files().create(body=body, media_body=media_body, fields='id', supportsTeamDrives=True)
+
+      async def notify(progress):
+          if not progress_callback:
+              return
+          if inspect.iscoroutinefunction(progress_callback):
+              await progress_callback(progress, total_size)
+          else:
+              progress_callback(progress, total_size)
+
+      def dispatch(progress):
+          if not progress_callback:
+              return
+          if inspect.iscoroutinefunction(progress_callback):
+              asyncio.run_coroutine_threadsafe(progress_callback(progress, total_size), loop)
+          else:
+              loop.call_soon_threadsafe(progress_callback, progress, total_size)
+
+      async def run_upload():
+          retryer = Retrying(wait=wait_exponential(multiplier=2, min=3, max=6), stop=stop_after_attempt(5),
+              retry=retry_if_exception_type(HttpError), before=before_log(LOGGER, logging.DEBUG), reraise=True)
+
+          def perform():
+              response = None
+              while response is None:
+                  status, response = request.next_chunk()
+                  if status:
+                      dispatch(int(status.resumable_progress))
+              return response
+
+          def wrapped():
+              for attempt in retryer:
+                  with attempt:
+                      return perform()
+
+          return await loop.run_in_executor(None, wrapped)
+
+      try:
+          await notify(0)
+          uploaded_file = await run_upload()
+          await notify(total_size)
+          file_id = uploaded_file.get('id')
+          filesize = format_bytes(total_size)
+          return Messages.UPLOADED_SUCCESSFULLY.format(filename, self.__G_DRIVE_BASE_DOWNLOAD_URL.format(file_id), filesize)
+      except RetryError as err:
+          LOGGER.info(f"Total Attempts: {err.last_attempt.attempt_number}")
+          error = err.last_attempt.exception()
+          if isinstance(error, HttpError) and error.resp.get('content-type', '').startswith('application/json'):
+              reason = json.loads(error.content).get('error').get('errors')[0].get('reason')
+              if reason == 'userRateLimitExceeded' or reason == 'dailyLimitExceeded':
+                  return Messages.RATE_LIMIT_EXCEEDED_MESSAGE
+              return f"**ERROR:** {reason}"
+          return f"**ERROR:** ```{str(error).replace('>', '').replace('<', '')}```"
+      except HttpError as err:
+          if err.resp.get('content-type', '').startswith('application/json'):
+              reason = json.loads(err.content).get('error').get('errors')[0].get('reason')
+              if reason == 'userRateLimitExceeded' or reason == 'dailyLimitExceeded':
+                  return Messages.RATE_LIMIT_EXCEEDED_MESSAGE
+              return f"**ERROR:** {reason}"
+          return f"**ERROR:** ```{str(err).replace('>', '').replace('<', '')}```"
+      except Exception as e:
+          return f"**ERROR:** ```{e}```"
 
   @retry(wait=wait_exponential(multiplier=2, min=3, max=6), stop=stop_after_attempt(5),
     retry=retry_if_exception_type(HttpError), before=before_log(LOGGER, logging.DEBUG))
