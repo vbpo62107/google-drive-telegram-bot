@@ -4,6 +4,7 @@ from bot.helpers.utils import CustomFilters
 from bot.helpers.gdrive_utils import GoogleDrive
 from bot.helpers.sql_helper import idsDB
 from bot import LOGGER
+from bot.modules.drive_helper import invalidate_drive_instance
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.SetFolder) & CustomFilters.auth_users)
 def _set_parent(client, message):
@@ -18,6 +19,7 @@ def _set_parent(client, message):
         if result:
           idsDB._set(user_id, file_id)
           LOGGER.info(f'SetParent:{user_id}: {file_id}')
+          invalidate_drive_instance(user_id)
           sent_message.edit(Messages.PARENT_SET_SUCCESS.format(file_id, BotCommands.SetFolder[0]))
         else:
           sent_message.edit(file_id)
@@ -25,6 +27,7 @@ def _set_parent(client, message):
         sent_message.edit(Messages.INVALID_GDRIVE_URL)
     else:
       idsDB._clear(user_id)
+      invalidate_drive_instance(user_id)
       message.reply_text(Messages.PARENT_CLEAR_SUCCESS, quote=True)
   else:
     message.reply_text(Messages.CURRENT_PARENT.format(idsDB.search_parent(user_id), BotCommands.SetFolder[0]), quote=True)
