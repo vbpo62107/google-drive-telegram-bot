@@ -9,9 +9,9 @@ from tenacity import AsyncRetrying, RetryError, retry_if_exception_type, stop_af
 
 from bot import DOWNLOAD_DIRECTORY, SUDO_USERS
 from bot.config import Messages
-from bot.helpers.gdrive_utils.gDrive import GoogleDrive
 from bot.helpers.sql_helper import gDriveDB
 from bot.helpers.utils import extract_filename_from_url, format_bytes, format_elapsed_eta, format_speed, render_progress_bar
+from bot.modules.drive_helper import get_drive_instance
 
 
 @Client.on_message(filters.command("mirror") & filters.private)
@@ -110,7 +110,7 @@ async def mirror_handler(client, message):
         except RetryError as err:
             raise err
 
-    drive = GoogleDrive(message.from_user.id)
+    drive = await get_drive_instance(message.from_user.id)
     upload_start = 0.0
     last_upload_update = 0.0
 
