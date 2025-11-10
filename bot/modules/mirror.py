@@ -5,6 +5,7 @@ import time
 
 import aiohttp
 from pyrogram import Client, filters
+from pyrogram.helpers import escape_markdown
 from tenacity import AsyncRetrying, RetryError, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from bot import DOWNLOAD_DIRECTORY, SUDO_USERS
@@ -41,7 +42,8 @@ async def mirror_handler(client, message):
         destination = os.path.join(DOWNLOAD_DIRECTORY, filename)
         temp_path = destination + ".part"
         counter += 1
-    status = await client.send_message(message.chat.id, f"📥 开始处理 `{filename}`")
+    escaped_filename = escape_markdown(filename, version=1)
+    status = await client.send_message(message.chat.id, f"📥 开始处理 {escaped_filename}")
     download_start = time.monotonic()
     last_download_update = 0.0
     total_size = 0
@@ -54,15 +56,24 @@ async def mirror_handler(client, message):
         speed_value = transferred / elapsed if elapsed > 0 else 0
         speed_text = format_speed(speed_value)
         elapsed_text, eta_text = format_elapsed_eta(elapsed, transferred, total)
+        safe_bar = escape_markdown(bar, version=1)
+        safe_transferred = escape_markdown(format_bytes(transferred), version=1)
+        safe_total = escape_markdown(total_text, version=1)
+        safe_filename = escape_markdown(filename, version=1)
+        display_link = link if link else url
+        safe_link = escape_markdown(display_link, version=1)
+        safe_speed = escape_markdown(speed_text, version=1)
+        safe_elapsed = escape_markdown(elapsed_text, version=1)
+        safe_eta = escape_markdown(eta_text, version=1)
         progress_lines = [
             f"{emoji} {stage}",
-            f"{bar} {percent:.2f}%",
-            f"☁️ {format_bytes(transferred)} / {total_text}",
-            f"📄 `{filename}`",
-            f"🔗 {link if link else url}",
-            f"⚡ {speed_text}",
-            f"⏱️ {elapsed_text}",
-            f"⏳ {eta_text}",
+            f"{safe_bar} {percent:.2f}%",
+            f"☁️ {safe_transferred} / {safe_total}",
+            f"📄 {safe_filename}",
+            f"🔗 {safe_link}",
+            f"⚡ {safe_speed}",
+            f"⏱️ {safe_elapsed}",
+            f"⏳ {safe_eta}",
         ]
         await status.edit_text("\n".join(progress_lines))
 
