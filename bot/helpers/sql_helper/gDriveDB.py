@@ -39,6 +39,11 @@ def search(chat_id):
         return creds
 
 
+def exists(chat_id: str) -> bool:
+    with INSERTION_LOCK:
+        return SESSION.query(gDriveCreds.chat_id).filter_by(chat_id=chat_id).scalar() is not None
+
+
 def _clear(chat_id):
     with INSERTION_LOCK:
         saved_cred = SESSION.query(gDriveCreds).get(chat_id)
