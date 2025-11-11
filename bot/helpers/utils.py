@@ -9,7 +9,7 @@ from bot.helpers.sql_helper import gDriveDB
 
 
 class CustomFilters:
-    auth_users = filters.create(lambda _, __, message: bool(gDriveDB.exists(message.from_user.id)))
+    auth_users = filters.create(lambda _, __, message: bool(gDriveDB.is_authorized(message.from_user.id)))
 
 
 def format_bytes(size: int) -> str:

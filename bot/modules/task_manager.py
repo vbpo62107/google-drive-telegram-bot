@@ -17,7 +17,7 @@ from bot.helpers.utils import (
     format_speed,
     render_progress_bar,
 )
-from bot.modules.drive_helper import get_drive_instance
+from bot.modules.drive_helper import DriveAccessError, drive_error_message, get_drive_instance
 
 
 class TaskCancelled(Exception):
@@ -244,7 +244,10 @@ class MirrorTaskRunner:
         await asyncio.to_thread(os.replace, self._temp_path, self._destination)
 
     async def _upload(self) -> None:
-        drive = await get_drive_instance(self.user_id)
+        try:
+            drive = await get_drive_instance(self.user_id)
+        except DriveAccessError as exc:
+            raise TaskRetry(drive_error_message(exc.code))
         upload_total = await asyncio.to_thread(self._determine_upload_size)
         self._stage_start = time.monotonic()
         await self._update_status(MirrorTaskStatus.RUNNING, "上传中", total_bytes=upload_total, processed_bytes=0)

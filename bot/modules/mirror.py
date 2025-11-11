@@ -50,8 +50,7 @@ async def mirror_handler(client, message):
     if not re.match(r"^https?://", url, re.I):
         await client.send_message(message.chat.id, "❌ 仅支持 HTTP(S) 链接.")
         return
-    creds = gDriveDB.search(message.from_user.id)
-    if not creds:
+    if not gDriveDB.is_authorized(message.from_user.id):
         await client.send_message(message.chat.id, Messages.NOT_AUTH)
         return
     filename = extract_filename_from_url(url, "downloaded_file")
