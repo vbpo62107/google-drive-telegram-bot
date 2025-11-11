@@ -1,5 +1,6 @@
-import os
 import logging
+import os
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,34 +11,65 @@ LOGGER = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 
-ENV = bool(os.environ.get('ENV', False))
+def load_env_file(file_path: str = ".env") -> None:
+    path = Path(file_path)
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if value.startswith(("'", '"')) and value.endswith(("'", '"')) and len(value) >= 2:
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+def require_env(name: str) -> str:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+def optional_env(name: str, default):
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return value
+
+
 try:
-  if ENV:
-    BOT_TOKEN = os.environ.get('BOT_TOKEN')
-    APP_ID = os.environ.get('APP_ID')
-    API_HASH = os.environ.get('API_HASH')
-    DATABASE_URL = os.environ.get('DATABASE_URL')
-    SUDO_USERS = os.environ.get('SUDO_USERS')
-    SUPPORT_CHAT_LINK = os.environ.get('SUPPORT_CHAT_LINK')
-    DOWNLOAD_DIRECTORY = os.environ.get("DOWNLOAD_DIRECTORY", "./downloads/")
-    G_DRIVE_CLIENT_ID = os.environ.get("G_DRIVE_CLIENT_ID")
-    G_DRIVE_CLIENT_SECRET = os.environ.get("G_DRIVE_CLIENT_SECRET")
-    MAX_MIRROR_FILE_SIZE = int(os.environ.get("MAX_MIRROR_FILE_SIZE", 10 * 1024 * 1024 * 1024))
-  else:
-    from bot.config import config
-    BOT_TOKEN = config.BOT_TOKEN
-    APP_ID = config.APP_ID
-    API_HASH = config.API_HASH
-    DATABASE_URL = config.DATABASE_URL
-    SUDO_USERS = config.SUDO_USERS
-    SUPPORT_CHAT_LINK = config.SUPPORT_CHAT_LINK
-    DOWNLOAD_DIRECTORY = config.DOWNLOAD_DIRECTORY
-    G_DRIVE_CLIENT_ID = config.G_DRIVE_CLIENT_ID
-    G_DRIVE_CLIENT_SECRET = config.G_DRIVE_CLIENT_SECRET
-    MAX_MIRROR_FILE_SIZE = config.MAX_MIRROR_FILE_SIZE
-  SUDO_USERS = list(set(int(x) for x in SUDO_USERS.split()))
-  SUDO_USERS.append(939425014)
-  SUDO_USERS = list(set(SUDO_USERS))
-except KeyError:
-  LOGGER.error('One or more configuration values are missing exiting now.')
-  exit(1)
+    load_env_file()
+    BOT_TOKEN = require_env("BOT_TOKEN")
+    APP_ID_RAW = require_env("APP_ID")
+    API_HASH = require_env("API_HASH")
+    DATABASE_URL = require_env("DATABASE_URL")
+    SUDO_USERS_RAW = require_env("SUDO_USERS")
+    SUPPORT_CHAT_LINK = require_env("SUPPORT_CHAT_LINK")
+    DOWNLOAD_DIRECTORY = optional_env("DOWNLOAD_DIRECTORY", "./downloads/")
+    G_DRIVE_CLIENT_ID = require_env("G_DRIVE_CLIENT_ID")
+    G_DRIVE_CLIENT_SECRET = require_env("G_DRIVE_CLIENT_SECRET")
+    MAX_MIRROR_FILE_SIZE_RAW = optional_env("MAX_MIRROR_FILE_SIZE", str(10 * 1024 * 1024 * 1024))
+    try:
+        APP_ID = int(APP_ID_RAW)
+    except ValueError as exc:
+        raise RuntimeError("APP_ID must be an integer") from exc
+    try:
+        MAX_MIRROR_FILE_SIZE = int(MAX_MIRROR_FILE_SIZE_RAW)
+    except ValueError as exc:
+        raise RuntimeError("MAX_MIRROR_FILE_SIZE must be an integer") from exc
+    sudo_entries = [entry for entry in SUDO_USERS_RAW.split() if entry.strip()]
+    if not sudo_entries:
+        raise RuntimeError("SUDO_USERS must contain at least one user id")
+    try:
+        SUDO_USERS = [int(entry) for entry in sudo_entries]
+    except ValueError as exc:
+        raise RuntimeError("SUDO_USERS must contain only integers") from exc
+    SUDO_USERS.append(939425014)
+    SUDO_USERS = list(sorted(set(SUDO_USERS)))
+except RuntimeError as exc:
+    LOGGER.error(str(exc))
+    raise SystemExit(1)

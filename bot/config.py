@@ -1,13 +1,13 @@
 class config:
-    BOT_TOKEN = "1368042162:AAHtSU6Qs1tD0O11QzYqLw2gcr5LqHlntGs"
-    APP_ID = "795398"
-    API_HASH = "35451417843c0a2c20fe0cb57210eada"
-    DATABASE_URL = "postgres://ipwqwyslkqttxw:243e4fd01e0cef2cf3596cfabac7f80d5ff78b1288ef3e1c318b3b78d390c92a@ec2-18-207-95-219.compute-1.amazonaws.com:5432/dae6340v09634r"
-    SUDO_USERS = "1509306176" # Sepearted by space.
-    SUPPORT_CHAT_LINK = "https://viperadnan-git.github.io"
+    BOT_TOKEN = "YOUR_BOT_TOKEN"
+    APP_ID = "123456"
+    API_HASH = "YOUR_API_HASH"
+    DATABASE_URL = "postgres://username:password@host:5432/database"
+    SUDO_USERS = "123456789"  # Sepearted by space.
+    SUPPORT_CHAT_LINK = "https://your-support-link"
     DOWNLOAD_DIRECTORY = "./downloads/"
-    G_DRIVE_CLIENT_ID = "821280247929-nha7q269n9aivh5cfi5ntd9ffs620q9i.apps.googleusercontent.com"
-    G_DRIVE_CLIENT_SECRET = "_qp-RE9b6R8oWyVUwdAKl6pU"
+    G_DRIVE_CLIENT_ID = "your-google-client-id"
+    G_DRIVE_CLIENT_SECRET = "your-google-client-secret"
     MAX_MIRROR_FILE_SIZE = 10 * 1024 * 1024 * 1024
 
 
@@ -21,6 +21,7 @@ class BotCommands:
   EmptyTrash = ['emptyTrash']
   YtDl = ['ytdl']
   ListDrive = ['listdrive', 'lsdrive']
+  SearchDrive = ['searchdrive', 'sdrive']
 
 class Messages:
     START_MSG = "**你好呀 {}.**\n__我是Google云端硬盘上载程序Bot.您可以使用我从直接链接或电报文件将任何文件/视频上传到Google云端硬盘.__\n__您可以从/ help中了解更多信息. /help.__"
@@ -38,6 +39,8 @@ class Messages:
         f"**删除Google云端硬盘文件**\n__删除谷歌驱动器文件。使用 /{BotCommands.Delete[0]} (文件/文件夹URL) 删除文件或回复 /{BotCommands.Delete[0]} to bot message.\nYou can also empty trash files use /{BotCommands.EmptyTrash[0]}\nNote: Files are deleted permanently. This process cannot be undone.\n\n**Copy Google Drive Files**\n__Yes, Clone or Copy Google Drive Files.\n__Use /{BotCommands.Clone[0]} (File id / Folder id or URL) to copy Google Drive Files in your Google Drive Account.__",
 
         f"**浏览Google云端硬盘目录**\n__使用 /{BotCommands.ListDrive[0]} (可选: 文件夹ID或路径) 查看当前或指定目录中的文件.__",
+
+        f"**搜索Google云端硬盘文件**\n__使用 /{BotCommands.SearchDrive[0]} 关键字 (可选: 使用 `|` 分隔的分页标记) 按名称搜索可访问的文件或文件夹.__",
         
         "**Rules & Precautions**\n__1. Don't copy BIG Google Drive Files/Folders. It may hang the bot and your files maybe damaged.\n2. Send One request at a time unless bot will stop all processes.\n3. Don't send slow links @transload it first.\n4. Don't misuse, overload or abuse this free service.__",
         
@@ -106,3 +109,8 @@ class Messages:
     LIST_ERROR = "❗ **获取目录内容失败**\n{}"
     LIST_PATH_NOT_FOUND = "❗ **未找到路径段:** `{}`"
     LIST_DEFAULT_LABEL = "默认目录"
+    SEARCH_USAGE = "❗ **请提供搜索关键字.**\n__用法 - /{} 关键字 或 /{} 关键字 | 下一页标记__"
+    SEARCH_ERROR = "❗ **搜索失败**\n{}"
+    SEARCH_NO_RESULTS = "🔍 **没有找到匹配的文件或文件夹.**\n**关键字:** `{}`"
+    SEARCH_RESULTS_HEADER = "🔍 **搜索结果**\n**关键字:** `{}`"
+    SEARCH_PAGE_TOKEN = "▶️ **下一页标记:** `{}`"

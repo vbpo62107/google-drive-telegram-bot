@@ -45,6 +45,23 @@ class GoogleDrive:
 
   @retry(wait=wait_exponential(multiplier=2, min=3, max=6), stop=stop_after_attempt(5),
     retry=retry_if_exception_type(HttpError), before=before_log(LOGGER, logging.DEBUG))
+  def search_files(self, query, page_token=None):
+      sanitized = query.replace("'", "\\'")
+      params = {
+          'q': f"name contains '{sanitized}'",
+          'spaces': 'drive',
+          'corpora': 'allDrives',
+          'supportsAllDrives': True,
+          'includeItemsFromAllDrives': True,
+          'pageSize': 20,
+          'fields': 'nextPageToken, files(id, name, mimeType, size)'
+      }
+      if page_token:
+          params['pageToken'] = page_token
+      return self.__service.files().list(**params).execute()
+
+  @retry(wait=wait_exponential(multiplier=2, min=3, max=6), stop=stop_after_attempt(5),
+    retry=retry_if_exception_type(HttpError), before=before_log(LOGGER, logging.DEBUG))
   def getFilesByFolderId(self, folder_id):
       page_token = None
       q = f"'{folder_id}' in parents"
