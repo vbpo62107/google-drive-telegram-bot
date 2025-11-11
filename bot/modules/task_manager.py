@@ -2,7 +2,7 @@ import asyncio
 import os
 import threading
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, Set
 
 import aiofiles
 import aiohttp
@@ -451,6 +451,7 @@ class TaskManager:
         self.client = None
         self._queue: asyncio.Queue[MirrorTaskRunner] = asyncio.Queue()
         self._runners: Dict[int, MirrorTaskRunner] = {}
+        self._pending: Set[int] = set()
         self._workers = []
         self._semaphore = asyncio.Semaphore(concurrency_limit)
         self._initialized = False
@@ -487,13 +488,19 @@ class TaskManager:
         record = await asyncio.to_thread(op)
         runner = MirrorTaskRunner(self, record)
         self._runners[runner.id] = runner
-        await self._queue.put(runner)
+        if runner.message_id is not None:
+            await self._queue.put(runner)
+        else:
+            self._pending.add(runner.id)
         return runner
 
     async def update_message_id(self, task_id: int, message_id: int) -> None:
         runner = self._runners.get(task_id)
         if runner:
             await runner.set_message_id(message_id)
+            if task_id in self._pending:
+                self._pending.discard(task_id)
+                await self._queue.put(runner)
 
     async def pause(self, client, task_id: int) -> bool:
         await self.initialize(client)
@@ -531,6 +538,8 @@ class TaskManager:
             runner = MirrorTaskRunner(self, record)
             self._runners[task_id] = runner
         changed = await runner.request_cancel()
+        if changed:
+            self._pending.discard(task_id)
         return changed
 
     async def _worker_loop(self) -> None:
@@ -549,6 +558,7 @@ class TaskManager:
                     pass
                 elif result in {"completed", "cancelled", "failed"}:
                     self._runners.pop(runner.id, None)
+                    self._pending.discard(runner.id)
             except Exception as exc:
                 LOGGER.error("Worker error for task %s: %s", runner.id, exc)
             finally:
