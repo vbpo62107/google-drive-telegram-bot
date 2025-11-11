@@ -151,12 +151,17 @@ class MirrorTaskRunner:
         await self._upload()
 
     async def _download(self) -> None:
-        retryer = aiohttp.ClientSession
+        if self.url.startswith("tg://"):
+            await self._download_from_telegram()
+        else:
+            await self._download_from_http()
+
+    async def _download_from_http(self) -> None:
         attempt = 0
         while True:
             attempt += 1
             try:
-                await self._perform_download()
+                await self._perform_http_download()
                 return
             except ValueError as exc:
                 raise exc
@@ -165,7 +170,7 @@ class MirrorTaskRunner:
                     raise TaskRetry(str(exc))
                 await asyncio.sleep(min(4 * attempt, 16))
 
-    async def _perform_download(self) -> None:
+    async def _perform_http_download(self) -> None:
         self._stage_start = time.monotonic()
         self._downloaded = 0
         self._total = 0
@@ -192,6 +197,50 @@ class MirrorTaskRunner:
                         await self._handle_progress("下载中", self._downloaded, self._total)
                 if self._downloaded:
                     await self._handle_progress("下载中", self._downloaded, self._total, force=True)
+        await asyncio.to_thread(os.replace, self._temp_path, self._destination)
+
+    async def _download_from_telegram(self) -> None:
+        if not self.manager.client:
+            raise ValueError("客户端不可用")
+        parts = self.url[5:].split("/", 1)
+        if len(parts) != 2:
+            raise ValueError("无效的 Telegram 源")
+        try:
+            chat_id = int(parts[0])
+            message_id = int(parts[1])
+        except ValueError as exc:
+            raise ValueError("无效的 Telegram 源") from exc
+        message = await self.manager.client.get_messages(chat_id, message_id)
+        media = None
+        for attr in ("document", "video", "audio", "voice", "photo", "animation"):
+            media = getattr(message, attr, None)
+            if media:
+                break
+        if not media:
+            raise ValueError("未找到可下载的媒体")
+        size = getattr(media, "file_size", 0) or 0
+        if size and size > MAX_MIRROR_FILE_SIZE:
+            raise ValueError("文件大小超出限制")
+        self._stage_start = time.monotonic()
+        self._downloaded = 0
+        self._total = size
+        await self._update_status(MirrorTaskStatus.RUNNING, "下载中", total_bytes=size, processed_bytes=0)
+
+        async def progress(current: int, total: int) -> None:
+            self._downloaded = current
+            self._total = total
+            await self._check_control()
+            await self._handle_progress("下载中", current, total)
+
+        await self.manager.client.download_media(
+            message,
+            file_name=self._temp_path,
+            progress=progress,
+        )
+        if not os.path.exists(self._temp_path):
+            raise ValueError("下载失败")
+        if self._downloaded:
+            await self._handle_progress("下载中", self._downloaded, self._total, force=True)
         await asyncio.to_thread(os.replace, self._temp_path, self._destination)
 
     async def _upload(self) -> None:

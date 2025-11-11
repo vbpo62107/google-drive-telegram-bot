@@ -72,6 +72,12 @@ The bot now relies exclusively on environment variables. You can either export t
 - Tasks beyond the concurrency limit wait in a queue and start automatically when slots free up.
 - Progress notifications stay in sync with the task database so running tasks restore after bot restarts.
 
+### Automatic channel monitoring
+- SUDO users can manage keyword-based channel monitors with `/addmonitor`, `/listmonitor`, `/togglemonitor`, and `/delmonitor`.
+- When the bot is a member of the channel and a post matches configured keywords, media or links are mirrored automatically with the same task manager used by manual `/mirror` jobs.
+- Notifications are sent to all SUDO users and tasks can be paused, resumed, or cancelled from the inline controls in the admin chat.
+- Disable monitors when no longer needed to stop background listeners and avoid unintended transfers.
+
 ### Deploy 
 ```sh 
 python3 -m bot
