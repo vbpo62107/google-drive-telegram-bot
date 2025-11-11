@@ -20,6 +20,7 @@ class BotCommands:
   Delete = ['delete', 'del']
   EmptyTrash = ['emptyTrash']
   YtDl = ['ytdl']
+  ListDrive = ['listdrive', 'lsdrive']
 
 class Messages:
     START_MSG = "**你好呀 {}.**\n__我是Google云端硬盘上载程序Bot.您可以使用我从直接链接或电报文件将任何文件/视频上传到Google云端硬盘.__\n__您可以从/ help中了解更多信息. /help.__"
@@ -35,6 +36,8 @@ class Messages:
         f"**要上传的自定义文件夹**\n__要在自定义文件夹或者在__ **TeamDrive** __ ?\nUse /{BotCommands.SetFolder[0]} (Folder URL) 来设置自定义上传文件夹.\n所有文件上传到该文件夹中.__",
         
         f"**删除Google云端硬盘文件**\n__删除谷歌驱动器文件。使用 /{BotCommands.Delete[0]} (文件/文件夹URL) 删除文件或回复 /{BotCommands.Delete[0]} to bot message.\nYou can also empty trash files use /{BotCommands.EmptyTrash[0]}\nNote: Files are deleted permanently. This process cannot be undone.\n\n**Copy Google Drive Files**\n__Yes, Clone or Copy Google Drive Files.\n__Use /{BotCommands.Clone[0]} (File id / Folder id or URL) to copy Google Drive Files in your Google Drive Account.__",
+
+        f"**浏览Google云端硬盘目录**\n__使用 /{BotCommands.ListDrive[0]} (可选: 文件夹ID或路径) 查看当前或指定目录中的文件.__",
         
         "**Rules & Precautions**\n__1. Don't copy BIG Google Drive Files/Folders. It may hang the bot and your files maybe damaged.\n2. Send One request at a time unless bot will stop all processes.\n3. Don't send slow links @transload it first.\n4. Don't misuse, overload or abuse this free service.__",
         
@@ -97,3 +100,9 @@ class Messages:
     EMPTY_TRASH = "🗑️🚮**成功清空垃圾箱 !**"
     
     PROVIDE_YTDL_LINK = "❗**提供有效的YouTube-DL支持的链接.**"
+    LIST_HEADER = "📂 **目录内容**\n**路径:** `{}`\n**ID:** `{}`"
+    LIST_CONT_HEADER = "📂 **目录内容 (续)**\n**路径:** `{}`\n**ID:** `{}`"
+    LIST_EMPTY = "📂 **目录为空**\n**路径:** `{}`"
+    LIST_ERROR = "❗ **获取目录内容失败**\n{}"
+    LIST_PATH_NOT_FOUND = "❗ **未找到路径段:** `{}`"
+    LIST_DEFAULT_LABEL = "默认目录"
