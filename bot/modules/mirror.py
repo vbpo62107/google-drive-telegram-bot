@@ -1,22 +1,41 @@
 import asyncio
-import os
 import re
-import time
 
-import aiofiles
-import aiohttp
 from pyrogram import Client, filters
-from tenacity import AsyncRetrying, RetryError, retry_if_exception_type, stop_after_attempt, wait_exponential
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS
+from bot import SUDO_USERS
 from bot.config import Messages
 from bot.helpers.sql_helper import gDriveDB
-from bot.helpers.utils import extract_filename_from_url, format_bytes, format_elapsed_eta, format_speed, render_progress_bar
-from bot.modules.drive_helper import get_drive_instance
+from bot.helpers.sql_helper.mirror_tasks import MirrorTask, MirrorTaskStatus
+from bot.helpers.sql_helper import get_session
+from bot.helpers.utils import extract_filename_from_url
+from bot.modules.task_manager import task_manager
 
 
-class FileTooLargeError(Exception):
-    pass
+async def _update_stage(task_id: int, stage: str) -> None:
+    def op():
+        with get_session() as session:
+            record = session.query(MirrorTask).get(task_id)
+            if record:
+                record.stage = stage
+                if record.status != MirrorTaskStatus.PAUSED.value:
+                    record.status = MirrorTaskStatus.PENDING.value
+                session.add(record)
+                session.commit()
+
+    await asyncio.to_thread(op)
+
+
+def _initial_keyboard(task_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("⏸️ 暂停", callback_data=f"mirror:{task_id}:pause"),
+                InlineKeyboardButton("🛑 取消", callback_data=f"mirror:{task_id}:cancel"),
+            ]
+        ]
+    )
 
 
 @Client.on_message(filters.command("mirror") & filters.private)
@@ -36,133 +55,36 @@ async def mirror_handler(client, message):
         await client.send_message(message.chat.id, Messages.NOT_AUTH)
         return
     filename = extract_filename_from_url(url, "downloaded_file")
-    os.makedirs(DOWNLOAD_DIRECTORY, exist_ok=True)
-    base, ext = os.path.splitext(filename)
-    counter = 1
-    destination = os.path.join(DOWNLOAD_DIRECTORY, filename)
-    temp_path = destination + ".part"
-    while os.path.exists(destination) or os.path.exists(temp_path):
-        filename = f"{base}_{counter}{ext}"
-        destination = os.path.join(DOWNLOAD_DIRECTORY, filename)
-        temp_path = destination + ".part"
-        counter += 1
-    status = await client.send_message(message.chat.id, f"📥 开始处理 `{filename}`")
-    download_start = time.monotonic()
-    last_download_update = 0.0
-    total_size = 0
-    downloaded = 0
-
-    async def update_progress(stage, emoji, transferred, total, elapsed, link=None):
-        percent = (transferred / total * 100) if total else 0
-        bar = render_progress_bar(transferred, total)
-        total_text = format_bytes(total) if total else "未知大小"
-        speed_value = transferred / elapsed if elapsed > 0 else 0
-        speed_text = format_speed(speed_value)
-        elapsed_text, eta_text = format_elapsed_eta(elapsed, transferred, total)
-        progress_lines = [
-            f"{emoji} {stage}",
-            f"{bar} {percent:.2f}%",
-            f"☁️ {format_bytes(transferred)} / {total_text}",
-            f"📄 `{filename}`",
-            f"🔗 {link if link else url}",
-            f"⚡ {speed_text}",
-            f"⏱️ {elapsed_text}",
-            f"⏳ {eta_text}",
-        ]
-        await status.edit_text("\n".join(progress_lines))
-
-    async def download_once():
-        nonlocal total_size, downloaded, download_start, last_download_update
-        download_start = time.monotonic()
-        last_download_update = 0.0
-        downloaded = 0
-        if os.path.exists(temp_path):
-            await asyncio.to_thread(os.remove, temp_path)
-        timeout = aiohttp.ClientTimeout(total=None)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url) as response:
-                if response.status >= 400:
-                    raise ValueError(f"HTTP {response.status}")
-                length = response.headers.get("Content-Length")
-                try:
-                    total_size = int(length) if length else 0
-                except ValueError:
-                    total_size = 0
-                if total_size and total_size > MAX_MIRROR_FILE_SIZE:
-                    raise FileTooLargeError(
-                        f"文件大小 {format_bytes(total_size)} 超过上限 {format_bytes(MAX_MIRROR_FILE_SIZE)}"
-                    )
-                await update_progress("下载中", "📥", 0, total_size, 0)
-                async with aiofiles.open(temp_path, "wb") as file:
-                    async for chunk in response.content.iter_chunked(1024 * 64):
-                        if not chunk:
-                            continue
-                        projected_total = downloaded + len(chunk)
-                        if projected_total > MAX_MIRROR_FILE_SIZE:
-                            raise FileTooLargeError(
-                                f"下载数据超过上限 {format_bytes(MAX_MIRROR_FILE_SIZE)}"
-                            )
-                        await file.write(chunk)
-                        downloaded = projected_total
-                        now = time.monotonic()
-                        elapsed = now - download_start
-                        if downloaded == total_size or now - last_download_update >= 1.5:
-                            last_download_update = now
-                            await update_progress("下载中", "📥", downloaded, total_size, elapsed)
-                if downloaded:
-                    await update_progress("下载中", "📥", downloaded, total_size, time.monotonic() - download_start)
-        await asyncio.to_thread(os.replace, temp_path, destination)
-
-    async def download_file():
-        retryer = AsyncRetrying(wait=wait_exponential(multiplier=4, min=4, max=16), stop=stop_after_attempt(3),
-            retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError, ValueError)), reraise=False)
-        try:
-            async for attempt in retryer:
-                with attempt:
-                    await download_once()
-                    return
-        except RetryError as err:
-            raise err
-
-    drive = await get_drive_instance(message.from_user.id)
-    upload_start = 0.0
-    last_upload_update = 0.0
-
-    async def upload_callback(transferred, total):
-        nonlocal upload_start, last_upload_update
-        if not upload_start:
-            upload_start = time.monotonic()
-        now = time.monotonic()
-        elapsed = now - upload_start
-        if transferred < total and now - last_upload_update < 1.5:
-            return
-        last_upload_update = now
-        await update_progress("上传中", "☁️", transferred, total, elapsed)
-
     try:
-        await download_file()
-        upload_start = time.monotonic()
-        upload_total = total_size or await asyncio.to_thread(os.path.getsize, destination)
-        await update_progress("准备上传", "☁️", 0, upload_total, 0)
-        upload_result = await drive.upload_file_with_progress(destination, progress_callback=upload_callback)
-        if upload_result.startswith("✅"):
-            await status.edit_text(upload_result)
-        elif upload_result.startswith("❗") or upload_result.startswith("**ERROR"):
-            await status.edit_text(upload_result)
-        else:
-            await status.edit_text(f"❌ {upload_result}")
-    except RetryError:
-        await status.edit_text("🔁 重试多次后仍失败")
+        runner = await task_manager.submit(client, message.from_user.id, message.chat.id, url, filename)
+        sent = await client.send_message(
+            message.chat.id,
+            f"📥 任务已创建\nID: {runner.id}\n文件: `{filename}`\n状态: 排队中",
+            reply_markup=_initial_keyboard(runner.id),
+        )
+        await task_manager.update_message_id(runner.id, sent.message_id)
+        await _update_stage(runner.id, "排队中")
     except Exception as exc:
-        await status.edit_text(f"❌ {str(exc)}")
-    finally:
-        if os.path.exists(temp_path):
-            try:
-                await asyncio.to_thread(os.remove, temp_path)
-            except FileNotFoundError:
-                pass
-        if os.path.exists(destination):
-            try:
-                await asyncio.to_thread(os.remove, destination)
-            except FileNotFoundError:
-                pass
+        await client.send_message(message.chat.id, f"❌ {exc}")
+
+
+@Client.on_callback_query(filters.regex(r"^mirror:(\d+):(pause|resume|cancel)$"))
+async def mirror_callback_handler(client, query):
+    if query.from_user is None or query.from_user.id not in SUDO_USERS:
+        await query.answer("❌ 无权操作", show_alert=True)
+        return
+    data = query.data.split(":")
+    task_id = int(data[1])
+    action = data[2]
+    try:
+        if action == "pause":
+            changed = await task_manager.pause(client, task_id)
+            await query.answer("⏸️ 已暂停" if changed else "⚠️ 无法暂停", show_alert=True)
+        elif action == "resume":
+            changed = await task_manager.resume(client, task_id)
+            await query.answer("▶️ 已继续" if changed else "⚠️ 无法继续", show_alert=True)
+        elif action == "cancel":
+            changed = await task_manager.cancel(client, task_id)
+            await query.answer("🛑 已取消" if changed else "⚠️ 无法取消", show_alert=True)
+    except Exception as exc:
+        await query.answer(f"❌ {exc}", show_alert=True)
