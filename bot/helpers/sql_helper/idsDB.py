@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Numeric
-from bot.helpers.sql_helper import SESSION, BASE
+from bot.helpers.sql_helper import BASE, get_session
 
 
 class ParentID(BASE):
@@ -16,29 +16,28 @@ ParentID.__table__.create(checkfirst=True)
 
 
 def search_parent(chat_id):
-    try:
-        parent_id = SESSION.query(ParentID).with_entities(ParentID.parent_id).filter_by(chat_id=chat_id).scalar()
+    with get_session() as session:
+        parent_id = session.query(ParentID).with_entities(ParentID.parent_id).filter_by(chat_id=chat_id).scalar()
         return parent_id if parent_id is not None else 'root'
-    finally:
-        SESSION.rollback()
-        SESSION.close()
 
 
 def _set(chat_id, parent_id):
-    adder = SESSION.query(ParentID).get(chat_id)
-    if adder:
-        adder.parent_id = parent_id
-    else:
-        adder = ParentID(
-            chat_id,
-            parent_id
-        )
-    SESSION.add(adder)
-    SESSION.commit()
+    with get_session() as session:
+        adder = session.query(ParentID).get(chat_id)
+        if adder:
+            adder.parent_id = parent_id
+        else:
+            adder = ParentID(
+                chat_id,
+                parent_id
+            )
+        session.add(adder)
+        session.commit()
 
 
 def _clear(chat_id):
-    rem = SESSION.query(ParentID).get(chat_id)
-    if rem:
-        SESSION.delete(rem)
-        SESSION.commit()
+    with get_session() as session:
+        rem = session.query(ParentID).get(chat_id)
+        if rem:
+            session.delete(rem)
+            session.commit()
