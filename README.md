@@ -42,18 +42,28 @@ pip3 install -r requirements.txt
 ```
 
 ### Configuration
-**There are two Ways for configuring this bot.**
-1. Add values to Environment Variables. And add a `ENV` var to Anything to enable it.
-2. Add values in [config.py](./bot/config.py). And make sure that no `ENV` environment variables existing.
+The bot now relies exclusively on environment variables. You can either export them in your shell or create a `.env` file next to `README.md`.
 
-### Configuration Values
-- `BOT_TOKEN` - Get it by contacting to [BotFather](https://t.me/botfather)
-- `APP_ID` - Get it by creating app on [my.telegram.org](https://my.telegram.org/apps)
-- `API_HASH` - Get it by creating app on [my.telegram.org](https://my.telegram.org/apps)
-- `SUDO_USERS` - List of Telegram User ID of sudo users, seperated by space.
-- `SUPPORT_CHAT_LINK` - Telegram invite link of support chat.
-- `DATABASE_URL` - Postgres database url.
-- `DOWNLOAD_DIRECTORY` - Custom path for downloads. Must end with a forward `/` slash. (Default to `./downloads/`)
+1. Copy `.env.example` to `.env`.
+   ```sh
+   cp .env.example .env
+   ```
+2. Fill in each placeholder with your real secrets.
+3. Start the bot; configuration values are loaded from the environment at runtime.
+
+### Required variables
+- `BOT_TOKEN` - Get it by contacting [BotFather](https://t.me/botfather)
+- `APP_ID` - Get it by creating an app on [my.telegram.org](https://my.telegram.org/apps)
+- `API_HASH` - Get it by creating an app on [my.telegram.org](https://my.telegram.org/apps)
+- `SUDO_USERS` - Space separated list of Telegram user IDs with elevated access
+- `SUPPORT_CHAT_LINK` - Telegram invite link of the support chat
+- `DATABASE_URL` - Postgres connection string
+- `G_DRIVE_CLIENT_ID` - Google OAuth client ID
+- `G_DRIVE_CLIENT_SECRET` - Google OAuth client secret
+
+### Optional variables
+- `DOWNLOAD_DIRECTORY` - Custom path for downloads. Must end with a forward `/` slash. Defaults to `./downloads/`
+- `MAX_MIRROR_FILE_SIZE` - Maximum file size in bytes for mirror operations. Defaults to `10737418240`
 
 ### Deploy 
 ```sh 
