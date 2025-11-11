@@ -11,6 +11,7 @@
 - [X] Delete Google Drive Files.
 - [X] Empty Google Drive trash.
 - [X] youtube-dl support.
+- [X] Mirror task manager with pause/resume/cancel controls and persistent recovery.
 
 ## ToDo 
 - [ ] Handle more exceptions.
@@ -58,6 +59,18 @@ The bot now relies exclusively on environment variables. You can either export t
 ### Optional variables
 - `DOWNLOAD_DIRECTORY` - Custom path for downloads. Must end with a forward `/` slash. Defaults to `./downloads/`
 - `MAX_MIRROR_FILE_SIZE` - Maximum file size in bytes for mirror operations. Defaults to `10737418240`
+- `MAX_CONCURRENT_MIRRORS` - Maximum number of concurrent mirror tasks. Defaults to `2`
+
+### Mirror task controls
+- `/mirror <url>` now creates a managed task with inline buttons to pause, resume, or cancel.
+- Tasks beyond the concurrency limit wait in a queue and start automatically when slots free up.
+- Progress notifications stay in sync with the task database so running tasks restore after bot restarts.
+
+### Automatic channel monitoring
+- SUDO users can manage keyword-based channel monitors with `/addmonitor`, `/listmonitor`, `/togglemonitor`, and `/delmonitor`.
+- When the bot is a member of the channel and a post matches configured keywords, media or links are mirrored automatically with the same task manager used by manual `/mirror` jobs.
+- Notifications are sent to all SUDO users and tasks can be paused, resumed, or cancelled from the inline controls in the admin chat.
+- Disable monitors when no longer needed to stop background listeners and avoid unintended transfers.
 
 ### Deploy 
 ```sh 

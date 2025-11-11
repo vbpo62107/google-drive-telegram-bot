@@ -9,6 +9,7 @@ class config:
     G_DRIVE_CLIENT_ID = "your-google-client-id"
     G_DRIVE_CLIENT_SECRET = "your-google-client-secret"
     MAX_MIRROR_FILE_SIZE = 10 * 1024 * 1024 * 1024
+    MAX_CONCURRENT_MIRRORS = 2
 
 
 class BotCommands:
@@ -33,7 +34,11 @@ class Messages:
         f"**验证Google云端硬盘**\n__发送 /{BotCommands.Authorize[0]} 注意,您将收到一个URL,访问URL并按照步骤操作,并在此处发送收到的代码.使用 /{BotCommands.Revoke[0]} 撤销您当前登录的Google云端硬盘帐户.__\n\n**请注意: 在您授权我之前,不会听任何命令或消息 (except /{BotCommands.Authorize[0]} command) 授权命令除外.\n所以, 授权是强制性的 !**",
         
         f"**下载链接**\n__向我发送文件的直接下载链接,我会将其下载到我的服务器上,并将其上传到您的Google Drive帐户. 您可以在上传文件到GDrive帐户之前重命名文件. 只需将URL发送给我和分隔符 ' | '.__\n\n**__例如:__**\n```https://example.com/AFileWithDirectDownloadLink.mkv | 新的文件名.mkv```\n\n**Telegram 文件**\n__要在您的Google云端硬盘帐户中上传电报文件,只需将文件发送给我,我就会下载并将其上传到您的Google云端硬盘帐户.. 注意：电报文件下载速度较慢，大文件可能需要更长的时间。.__\n\n**YouTube-DL 支持**\n__下载YouTube文件使用youtube-dl.\nUse /{BotCommands.YtDl[0]} (YouTube 链接/YouTube-DL Supported site link)__",
-        
+
+        "**镜像任务控制**\n__/mirror 会创建一个可暂停、继续或取消的任务; 超出并发上限的任务会排队执行, 机器人重启后任务进度会自动恢复展示.__",
+
+        "**自动频道监听**\n__/addmonitor <频道ID> 关键词列表 添加自动监控; /listmonitor 查看所有监控; /togglemonitor <监控ID> 切换启用状态; /delmonitor <监控ID> 删除监控. 机器人需加入对应频道并使用已授权的 SUDO 凭据, 自动捕获的任务与手动镜像共享同一进度管理，可随时暂停或取消.__",
+
         f"**要上传的自定义文件夹**\n__要在自定义文件夹或者在__ **TeamDrive** __ ?\nUse /{BotCommands.SetFolder[0]} (Folder URL) 来设置自定义上传文件夹.\n所有文件上传到该文件夹中.__",
         
         f"**删除Google云端硬盘文件**\n__删除谷歌驱动器文件。使用 /{BotCommands.Delete[0]} (文件/文件夹URL) 删除文件或回复 /{BotCommands.Delete[0]} to bot message.\nYou can also empty trash files use /{BotCommands.EmptyTrash[0]}\nNote: Files are deleted permanently. This process cannot be undone.\n\n**Copy Google Drive Files**\n__Yes, Clone or Copy Google Drive Files.\n__Use /{BotCommands.Clone[0]} (File id / Folder id or URL) to copy Google Drive Files in your Google Drive Account.__",

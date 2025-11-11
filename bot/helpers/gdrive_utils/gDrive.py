@@ -4,6 +4,8 @@ import json
 import logging
 import os
 import re
+import threading
+import time
 import urllib.parse as urlparse
 from mimetypes import guess_type
 from urllib.parse import parse_qs
@@ -190,7 +192,7 @@ class GoogleDrive:
       except Exception as e:
         return f"**ERROR:** ```{e}```"
 
-  async def upload_file_with_progress(self, file_path, mimeType=None, progress_callback=None):
+  async def upload_file_with_progress(self, file_path, mimeType=None, progress_callback=None, pause_event: threading.Event = None, cancel_callback=None):
       mime_type = mimeType if mimeType else guess_type(file_path)[0]
       mime_type = mime_type if mime_type else "text/plain"
       media_body = MediaFileUpload(
@@ -230,10 +232,23 @@ class GoogleDrive:
           retryer = Retrying(wait=wait_exponential(multiplier=2, min=3, max=6), stop=stop_after_attempt(5),
               retry=retry_if_exception_type(HttpError), before=before_log(LOGGER, logging.DEBUG), reraise=True)
 
+          def wait_if_paused():
+              if pause_event is None:
+                  return
+              while not pause_event.is_set():
+                  if cancel_callback and cancel_callback():
+                      raise RuntimeError("cancelled")
+                  time.sleep(0.2)
+
           def perform():
               response = None
               while response is None:
+                  if cancel_callback and cancel_callback():
+                      raise RuntimeError("cancelled")
+                  wait_if_paused()
                   status, response = request.next_chunk()
+                  if cancel_callback and cancel_callback():
+                      raise RuntimeError("cancelled")
                   if status:
                       dispatch(int(status.resumable_progress))
               return response
