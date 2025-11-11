@@ -21,6 +21,7 @@ class BotCommands:
   EmptyTrash = ['emptyTrash']
   YtDl = ['ytdl']
   ListDrive = ['listdrive', 'lsdrive']
+  SearchDrive = ['searchdrive', 'sdrive']
 
 class Messages:
     START_MSG = "**你好呀 {}.**\n__我是Google云端硬盘上载程序Bot.您可以使用我从直接链接或电报文件将任何文件/视频上传到Google云端硬盘.__\n__您可以从/ help中了解更多信息. /help.__"
@@ -38,6 +39,8 @@ class Messages:
         f"**删除Google云端硬盘文件**\n__删除谷歌驱动器文件。使用 /{BotCommands.Delete[0]} (文件/文件夹URL) 删除文件或回复 /{BotCommands.Delete[0]} to bot message.\nYou can also empty trash files use /{BotCommands.EmptyTrash[0]}\nNote: Files are deleted permanently. This process cannot be undone.\n\n**Copy Google Drive Files**\n__Yes, Clone or Copy Google Drive Files.\n__Use /{BotCommands.Clone[0]} (File id / Folder id or URL) to copy Google Drive Files in your Google Drive Account.__",
 
         f"**浏览Google云端硬盘目录**\n__使用 /{BotCommands.ListDrive[0]} (可选: 文件夹ID或路径) 查看当前或指定目录中的文件.__",
+
+        f"**搜索Google云端硬盘文件**\n__使用 /{BotCommands.SearchDrive[0]} 关键字 (可选: 使用 `|` 分隔的分页标记) 按名称搜索可访问的文件或文件夹.__",
         
         "**Rules & Precautions**\n__1. Don't copy BIG Google Drive Files/Folders. It may hang the bot and your files maybe damaged.\n2. Send One request at a time unless bot will stop all processes.\n3. Don't send slow links @transload it first.\n4. Don't misuse, overload or abuse this free service.__",
         
@@ -106,3 +109,8 @@ class Messages:
     LIST_ERROR = "❗ **获取目录内容失败**\n{}"
     LIST_PATH_NOT_FOUND = "❗ **未找到路径段:** `{}`"
     LIST_DEFAULT_LABEL = "默认目录"
+    SEARCH_USAGE = "❗ **请提供搜索关键字.**\n__用法 - /{} 关键字 或 /{} 关键字 | 下一页标记__"
+    SEARCH_ERROR = "❗ **搜索失败**\n{}"
+    SEARCH_NO_RESULTS = "🔍 **没有找到匹配的文件或文件夹.**\n**关键字:** `{}`"
+    SEARCH_RESULTS_HEADER = "🔍 **搜索结果**\n**关键字:** `{}`"
+    SEARCH_PAGE_TOKEN = "▶️ **下一页标记:** `{}`"
