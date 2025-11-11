@@ -264,8 +264,11 @@ class MirrorTaskRunner:
         self._last_error = record.error
         self._drive_link = record.drive_link
         self.paused = record.paused
-        if record.message_id and status is not None and status in {MirrorTaskStatus.CANCELLED, MirrorTaskStatus.FAILED, MirrorTaskStatus.COMPLETED}:
-            await self._update_message(stage_text, record.processed_bytes, record.total_bytes, record.speed, final=True)
+        if record.message_id and status is not None:
+            if status in {MirrorTaskStatus.CANCELLED, MirrorTaskStatus.FAILED, MirrorTaskStatus.COMPLETED}:
+                await self._update_message(stage_text, record.processed_bytes, record.total_bytes, record.speed, final=True)
+            elif status == MirrorTaskStatus.PAUSED:
+                await self._update_message(stage_text, record.processed_bytes, record.total_bytes, record.speed)
         return record
 
     async def _update_message(self, stage_text: str, processed: int, total: int, speed: float, final: bool = False) -> None:
