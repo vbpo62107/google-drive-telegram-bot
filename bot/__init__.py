@@ -53,6 +53,7 @@ try:
     G_DRIVE_CLIENT_ID = require_env("G_DRIVE_CLIENT_ID")
     G_DRIVE_CLIENT_SECRET = require_env("G_DRIVE_CLIENT_SECRET")
     MAX_MIRROR_FILE_SIZE_RAW = optional_env("MAX_MIRROR_FILE_SIZE", str(10 * 1024 * 1024 * 1024))
+    MAX_CONCURRENT_MIRRORS_RAW = optional_env("MAX_CONCURRENT_MIRRORS", "2")
     try:
         APP_ID = int(APP_ID_RAW)
     except ValueError as exc:
@@ -61,6 +62,10 @@ try:
         MAX_MIRROR_FILE_SIZE = int(MAX_MIRROR_FILE_SIZE_RAW)
     except ValueError as exc:
         raise RuntimeError("MAX_MIRROR_FILE_SIZE must be an integer") from exc
+    try:
+        MAX_CONCURRENT_MIRRORS = max(1, int(MAX_CONCURRENT_MIRRORS_RAW))
+    except ValueError as exc:
+        raise RuntimeError("MAX_CONCURRENT_MIRRORS must be an integer") from exc
     sudo_entries = [entry for entry in SUDO_USERS_RAW.split() if entry.strip()]
     if not sudo_entries:
         raise RuntimeError("SUDO_USERS must contain at least one user id")
