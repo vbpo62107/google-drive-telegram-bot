@@ -1,13 +1,13 @@
 class config:
-    BOT_TOKEN = "1368042162:AAHtSU6Qs1tD0O11QzYqLw2gcr5LqHlntGs"
-    APP_ID = "795398"
-    API_HASH = "35451417843c0a2c20fe0cb57210eada"
-    DATABASE_URL = "postgres://ipwqwyslkqttxw:243e4fd01e0cef2cf3596cfabac7f80d5ff78b1288ef3e1c318b3b78d390c92a@ec2-18-207-95-219.compute-1.amazonaws.com:5432/dae6340v09634r"
-    SUDO_USERS = "1509306176" # Sepearted by space.
-    SUPPORT_CHAT_LINK = "https://viperadnan-git.github.io"
+    BOT_TOKEN = "YOUR_BOT_TOKEN"
+    APP_ID = "123456"
+    API_HASH = "YOUR_API_HASH"
+    DATABASE_URL = "postgres://username:password@host:5432/database"
+    SUDO_USERS = "123456789"  # Sepearted by space.
+    SUPPORT_CHAT_LINK = "https://your-support-link"
     DOWNLOAD_DIRECTORY = "./downloads/"
-    G_DRIVE_CLIENT_ID = "821280247929-nha7q269n9aivh5cfi5ntd9ffs620q9i.apps.googleusercontent.com"
-    G_DRIVE_CLIENT_SECRET = "_qp-RE9b6R8oWyVUwdAKl6pU"
+    G_DRIVE_CLIENT_ID = "your-google-client-id"
+    G_DRIVE_CLIENT_SECRET = "your-google-client-secret"
     MAX_MIRROR_FILE_SIZE = 10 * 1024 * 1024 * 1024
 
 
