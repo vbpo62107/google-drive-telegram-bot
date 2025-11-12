@@ -1,14 +1,15 @@
 import asyncio
 import os
 from pathlib import PurePath
+
 from pyrogram import Client, filters
-from bot.helpers.sql_helper import gDriveDB, idsDB
-from bot.helpers.utils import CustomFilters, humanbytes
-from bot.helpers.downloader import download_file, utube_dl
-from bot.helpers.gdrive_utils import GoogleDrive 
+from pyrogram.errors import RPCError
+
 from bot import DOWNLOAD_DIRECTORY, LOGGER
-from bot.config import Messages, BotCommands
-from pyrogram.errors import FloodWait, RPCError
+from bot.config import BotCommands, Messages
+from bot.helpers.downloader import download_file, utube_dl
+from bot.helpers.utils import CustomFilters, humanbytes
+from bot.modules.drive_helper import DriveAccessError, drive_error_message, get_drive_instance
 
 @Client.on_message(filters.private & filters.incoming & filters.text & (filters.command(BotCommands.Download) | filters.regex('^(ht|f)tp*')) & CustomFilters.auth_users)
 async def _download(client, message):
@@ -23,7 +24,14 @@ async def _download(client, message):
         return
     else:
       link = message.text
-    drive = GoogleDrive(user_id)
+    try:
+        drive = await get_drive_instance(user_id)
+    except DriveAccessError as exc:
+        await sent_message.edit(drive_error_message(exc.code))
+        return
+    except Exception as exc:
+        await sent_message.edit(f"**ERROR:** ```{exc}```")
+        return
     if 'drive.google.com' in link:
       await sent_message.edit(Messages.CLONING.format(link))
       LOGGER.info(f'Copy:{user_id}: {link}')
@@ -82,7 +90,14 @@ async def _telegram_file(client, message):
     file.file_name = f"IMG-{user_id}-{message.message_id}.png"
   await sent_message.edit(Messages.DOWNLOAD_TG_FILE.format(file.file_name, humanbytes(file.file_size), file.mime_type))
   LOGGER.info(f'Download:{user_id}: {file.file_id}')
-  drive = GoogleDrive(user_id)
+  try:
+    drive = await get_drive_instance(user_id)
+  except DriveAccessError as exc:
+    await sent_message.edit(drive_error_message(exc.code))
+    return
+  except Exception as exc:
+    await sent_message.edit(f"**ERROR:** ```{exc}```")
+    return
   file_path = None
   try:
     file_path = await message.download(file_name=DOWNLOAD_DIRECTORY)
@@ -108,7 +123,14 @@ async def _ytdl(client, message):
     link = message.command[1]
     LOGGER.info(f'YTDL:{user_id}: {link}')
     await sent_message.edit(Messages.DOWNLOADING.format(link))
-    drive = GoogleDrive(user_id)
+    try:
+      drive = await get_drive_instance(user_id)
+    except DriveAccessError as exc:
+      await sent_message.edit(drive_error_message(exc.code))
+      return
+    except Exception as exc:
+      await sent_message.edit(f"**ERROR:** ```{exc}```")
+      return
     result, file_path = await asyncio.to_thread(utube_dl, link)
     if result:
       size = await asyncio.to_thread(os.path.getsize, file_path)

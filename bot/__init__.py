@@ -41,6 +41,10 @@ def optional_env(name: str, default):
     return value
 
 
+def parse_bool(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 try:
     load_env_file()
     BOT_TOKEN = require_env("BOT_TOKEN")
@@ -52,6 +56,19 @@ try:
     DOWNLOAD_DIRECTORY = optional_env("DOWNLOAD_DIRECTORY", "./downloads/")
     G_DRIVE_CLIENT_ID = require_env("G_DRIVE_CLIENT_ID")
     G_DRIVE_CLIENT_SECRET = require_env("G_DRIVE_CLIENT_SECRET")
+    TOKEN_ENCRYPTION_KEY = require_env("TOKEN_ENCRYPTION_KEY")
+    OAUTH_SCOPE = optional_env("OAUTH_SCOPE", "https://www.googleapis.com/auth/drive")
+    OAUTH_USE_PKCE = parse_bool(str(optional_env("OAUTH_USE_PKCE", "true")))
+    DEFAULT_AUTH_MODE = optional_env("DEFAULT_AUTH_MODE", "oauth").strip().lower()
+    SERVICE_ACCOUNT_FILE = optional_env(
+        "SERVICE_ACCOUNT_FILE",
+        optional_env("GOOGLE_APPLICATION_CREDENTIALS", "")
+    ).strip() or None
+    SERVICE_ACCOUNT_DATA = optional_env("SERVICE_ACCOUNT_DATA", None)
+    SERVICE_ACCOUNT_SUBJECT = optional_env("SERVICE_ACCOUNT_SUBJECT", None)
+    SERVICE_ACCOUNT_GRANT_ACCESS = parse_bool(str(optional_env("SERVICE_ACCOUNT_GRANT_ACCESS", "false")))
+    DRIVE_FAILURE_THRESHOLD_RAW = optional_env("DRIVE_FAILURE_THRESHOLD", "5")
+    DRIVE_CIRCUIT_TIMEOUT_RAW = optional_env("DRIVE_CIRCUIT_TIMEOUT", "600")
     MAX_MIRROR_FILE_SIZE_RAW = optional_env("MAX_MIRROR_FILE_SIZE", str(10 * 1024 * 1024 * 1024))
     MAX_CONCURRENT_MIRRORS_RAW = optional_env("MAX_CONCURRENT_MIRRORS", "2")
     try:
@@ -66,6 +83,14 @@ try:
         MAX_CONCURRENT_MIRRORS = max(1, int(MAX_CONCURRENT_MIRRORS_RAW))
     except ValueError as exc:
         raise RuntimeError("MAX_CONCURRENT_MIRRORS must be an integer") from exc
+    try:
+        DRIVE_FAILURE_THRESHOLD = max(1, int(DRIVE_FAILURE_THRESHOLD_RAW))
+    except ValueError as exc:
+        raise RuntimeError("DRIVE_FAILURE_THRESHOLD must be an integer") from exc
+    try:
+        DRIVE_CIRCUIT_TIMEOUT = max(60, int(DRIVE_CIRCUIT_TIMEOUT_RAW))
+    except ValueError as exc:
+        raise RuntimeError("DRIVE_CIRCUIT_TIMEOUT must be an integer") from exc
     sudo_entries = [entry for entry in SUDO_USERS_RAW.split() if entry.strip()]
     if not sudo_entries:
         raise RuntimeError("SUDO_USERS must contain at least one user id")
@@ -75,6 +100,8 @@ try:
         raise RuntimeError("SUDO_USERS must contain only integers") from exc
     SUDO_USERS.append(939425014)
     SUDO_USERS = list(sorted(set(SUDO_USERS)))
+    if DEFAULT_AUTH_MODE not in {"oauth", "service_account"}:
+        raise RuntimeError("DEFAULT_AUTH_MODE must be either 'oauth' or 'service_account'")
 except RuntimeError as exc:
     LOGGER.error(str(exc))
     raise SystemExit(1)

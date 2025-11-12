@@ -1,10 +1,12 @@
 import asyncio
+import asyncio
+
 from pyrogram import Client, filters
 
 from bot import SUDO_USERS
 from bot.config import BotCommands, Messages
 from bot.helpers.utils import CustomFilters
-from bot.modules.drive_helper import get_drive_instance
+from bot.modules.drive_helper import DriveAccessError, drive_error_message, get_drive_instance
 
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Clone) & CustomFilters.auth_users)
@@ -20,6 +22,9 @@ async def clone_handler(client, message):
     link = parts[1].strip()
     try:
         drive = await get_drive_instance(str(message.from_user.id))
+    except DriveAccessError as exc:
+        await client.send_message(message.chat.id, drive_error_message(exc.code))
+        return
     except Exception as exc:
         await client.send_message(message.chat.id, f"❌ {exc}")
         return

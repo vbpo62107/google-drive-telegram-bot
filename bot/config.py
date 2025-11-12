@@ -15,6 +15,7 @@ class config:
 class BotCommands:
   Download = ['download', 'dl']
   Authorize = ['auth', 'authorize']
+  AuthMode = ['authmode']
   SetFolder = ['setfolder', 'setfl']
   Revoke = ['revoke']
   Clone = ['copy', 'clone']
@@ -32,7 +33,9 @@ class Messages:
         "**Google云端硬盘上传器**\n__我可以将文件从直接链接或电报文件上传到您的Google云端硬盘.我需要做的就是对我的Google云端硬盘帐户进行身份验证.然后发送直接下载链接或电报文件.__\n\n我具有更多功能...想知道吗?只需遍历本教程并仔细阅读消息即可.",
         
         f"**验证Google云端硬盘**\n__发送 /{BotCommands.Authorize[0]} 注意,您将收到一个URL,访问URL并按照步骤操作,并在此处发送收到的代码.使用 /{BotCommands.Revoke[0]} 撤销您当前登录的Google云端硬盘帐户.__\n\n**请注意: 在您授权我之前,不会听任何命令或消息 (except /{BotCommands.Authorize[0]} command) 授权命令除外.\n所以, 授权是强制性的 !**",
-        
+
+        f"**授权模式切换**\n__/ {BotCommands.AuthMode[0]} service__ 启用服务账号通道; __/{BotCommands.AuthMode[0]} oauth__ 切换回用户 OAuth 模式.__",
+
         f"**下载链接**\n__向我发送文件的直接下载链接,我会将其下载到我的服务器上,并将其上传到您的Google Drive帐户. 您可以在上传文件到GDrive帐户之前重命名文件. 只需将URL发送给我和分隔符 ' | '.__\n\n**__例如:__**\n```https://example.com/AFileWithDirectDownloadLink.mkv | 新的文件名.mkv```\n\n**Telegram 文件**\n__要在您的Google云端硬盘帐户中上传电报文件,只需将文件发送给我,我就会下载并将其上传到您的Google云端硬盘帐户.. 注意：电报文件下载速度较慢，大文件可能需要更长的时间。.__\n\n**YouTube-DL 支持**\n__下载YouTube文件使用youtube-dl.\nUse /{BotCommands.YtDl[0]} (YouTube 链接/YouTube-DL Supported site link)__",
 
         "**镜像任务控制**\n__/mirror 会创建一个可暂停、继续或取消的任务; 超出并发上限的任务会排队执行, 机器人重启后任务进度会自动恢复展示.__",
@@ -75,13 +78,23 @@ class Messages:
     
     ALREADY_AUTH = "🔒 **已授权您的Google云端硬盘帐户.**\n__Use /revoke to revoke the current account.__\n__Send me a direct link or File to Upload on Google Drive__"
     
-    FLOW_IS_NONE = f"❗ **无效的代码**\n__Run {BotCommands.Authorize[0]} first.__"
-    
     AUTH_SUCCESSFULLY = '🔐 **成功授权Google云端硬盘帐户.**'
-    
+
     INVALID_AUTH_CODE = '❗ **无效的代码**\n__您发送的代码无效或之前已经使用过。通过授权URL生成新的__'
-    
-    AUTH_TEXT = "⛓️ **要授权您的Google云端硬盘帐户，请访问此 [URL]({}) 并在此处发送生成的代码.**\n__访问URL>允许权限>您将获得一个代码>复制它>在此处发送__"
+
+    AUTH_TEXT = "⛓️ **要授权您的Google云端硬盘帐户，请访问此 [URL]({}) 并在此处发送重定向页面中的 `code` 值或完整的回调链接.**\n__打开链接>允许权限>浏览器会显示错误页面>复制地址栏或其中的 `code` 参数>发送给我.__"
+
+    DRIVE_CIRCUIT_OPEN = "❗ **Drive 通道已暂时关闭.**\n__短时间内出现过多错误，系统已进入冷却，请稍后再试或刷新凭据.__"
+
+    INVALID_CREDENTIALS = f"❗ **凭据已失效或无法刷新.**\n__请重新执行 /{BotCommands.Authorize[0]} 授权，或使用 /{BotCommands.AuthMode[0]} service 切换为服务账号.__"
+
+    AUTHMODE_USAGE = f"❗ **用法:** /{BotCommands.AuthMode[0]} <service|oauth>"
+
+    AUTHMODE_SERVICE_ENABLED = "🔐 **已启用服务账号通道.**\n__新的操作将使用预配置的服务账号凭据.__"
+
+    AUTHMODE_OAUTH_ENABLED = f"🔑 **已切换到用户 OAuth 模式.**\n__请运行 /{BotCommands.Authorize[0]} 重新完成授权.__"
+
+    AUTHMODE_SERVICE_UNAVAILABLE = "❗ **尚未配置服务账号凭据.**\n__请设置 GOOGLE_APPLICATION_CREDENTIALS 或 SERVICE_ACCOUNT_DATA 后重试.__"
     
     DOWNLOAD_TG_FILE = "📥 **下载文件...**\n**Filename:** ```{}```\n**Size:** ```{}```\n**MimeType:** ```{}```"
     
