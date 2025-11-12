@@ -8,7 +8,7 @@ class GoogleDriveHelper:
     def __init__(self, user_id: int) -> None:
         self._user_id = str(user_id)
         self._drive = None
-        self._lock = asyncio.Lock()
+        self._lock: asyncio.Lock = asyncio.Lock()
 
     async def _ensure_drive(self):
         if self._drive is not None:
