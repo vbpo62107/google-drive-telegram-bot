@@ -174,7 +174,9 @@ class GoogleDrive:
         controller = controller or self._active_chunk_controller
         if controller is None:
             raise RuntimeError("Missing upload controller")
-        media = getattr(request, "resumable_media", None)
+        media = getattr(request, "resumable", None) or getattr(request, "resumable_media", None)
+        if media is None:
+            media = getattr(request, "media_body", None)
         if media is None:
             raise RuntimeError("Invalid upload request")
         controller.apply_to(media)
