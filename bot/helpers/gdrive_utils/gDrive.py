@@ -24,6 +24,48 @@ from bot.helpers.sql_helper import gDriveDB
 from bot.helpers.utils import format_bytes, humanbytes
 
 
+class AdaptiveChunkController:
+    _BASE_UNIT = 256 * 1024
+
+    def __init__(self, min_size=8 * 1024 * 1024, max_size=32 * 1024 * 1024, step=4 * 1024 * 1024):
+        self._min = self._align_value(min_size)
+        self._max = self._align_value(max_size)
+        self._step = max(self._BASE_UNIT, self._align_value(step))
+        self._current = max(self._min, min(self._align_value(min_size), self._max))
+        self._success_streak = 0
+        self._failure_streak = 0
+
+    def _align_value(self, value: int) -> int:
+        value = max(value, self._BASE_UNIT)
+        return (value // self._BASE_UNIT) * self._BASE_UNIT
+
+    @property
+    def current_size(self) -> int:
+        return self._current
+
+    def _set_current(self, value: int) -> None:
+        self._current = max(self._min, min(self._align_value(value), self._max))
+
+    def apply_to(self, media) -> None:
+        media.chunksize = self._align_value(self._current)
+
+    def record_success(self) -> int:
+        self._success_streak += 1
+        self._failure_streak = 0
+        if self._success_streak >= 2 and self._current < self._max:
+            self._set_current(self._current + self._step)
+            self._success_streak = 0
+        return self._current
+
+    def record_failure(self) -> int:
+        self._failure_streak += 1
+        self._success_streak = 0
+        if self._failure_streak >= 1 and self._current > self._min:
+            self._set_current(self._current - self._step)
+            self._failure_streak = 0
+        return self._current
+
+
 logging.getLogger("googleapiclient.discovery").setLevel(logging.ERROR)
 
 
@@ -46,6 +88,7 @@ class GoogleDrive:
         self.__parent_id = parent_id or "root"
         self.__service = self.authorize(credentials)
         self._retryer = self._build_retryer()
+        self._active_chunk_controller: Optional[AdaptiveChunkController] = None
         if self._mode == "service_account" and SERVICE_ACCOUNT_GRANT_ACCESS:
             self._ensure_service_account_permissions(credentials)
 
@@ -84,6 +127,14 @@ class GoogleDrive:
     def _reset_failures(self) -> None:
         gDriveDB.reset_failures(self._user_id)
 
+    def _start_upload_session(self) -> AdaptiveChunkController:
+        controller = AdaptiveChunkController()
+        self._active_chunk_controller = controller
+        return controller
+
+    def _finish_upload_session(self) -> None:
+        self._active_chunk_controller = None
+
     def _call(self, func: Callable[[], Any]):
         try:
             result = self._retryer(func)
@@ -98,6 +149,58 @@ class GoogleDrive:
         except Exception as exc:
             self._record_failure(exc)
             raise
+
+    def _wait_if_paused(
+        self,
+        pause_event: Optional[threading.Event],
+        cancel_callback: Optional[Callable[[], bool]],
+    ) -> None:
+        if pause_event is None:
+            return
+        while not pause_event.is_set():
+            if cancel_callback and cancel_callback():
+                raise RuntimeError("cancelled")
+            time.sleep(0.2)
+
+    def _perform_chunked_upload(
+        self,
+        request,
+        controller: Optional[AdaptiveChunkController],
+        *,
+        on_progress: Optional[Callable[[int], None]] = None,
+        pause_event: Optional[threading.Event] = None,
+        cancel_callback: Optional[Callable[[], bool]] = None,
+    ):
+        controller = controller or self._active_chunk_controller
+        if controller is None:
+            raise RuntimeError("Missing upload controller")
+        media = getattr(request, "resumable", None) or getattr(request, "resumable_media", None)
+        if media is None:
+            media = getattr(request, "media_body", None)
+        if media is None:
+            raise RuntimeError("Invalid upload request")
+        controller.apply_to(media)
+        response = None
+        while response is None:
+            if cancel_callback and cancel_callback():
+                raise RuntimeError("cancelled")
+            self._wait_if_paused(pause_event, cancel_callback)
+            try:
+                status, response = request.next_chunk()
+                controller.record_success()
+                if cancel_callback and cancel_callback():
+                    raise RuntimeError("cancelled")
+                if status and on_progress:
+                    on_progress(int(status.resumable_progress))
+                if response is None:
+                    controller.apply_to(media)
+            except Exception as exc:
+                if isinstance(exc, RuntimeError) and str(exc) == "cancelled":
+                    raise
+                controller.record_failure()
+                controller.apply_to(media)
+                raise
+        return response
 
     def _ensure_service_account_permissions(self, credentials) -> None:
         if self.__parent_id == "root":
@@ -268,12 +371,7 @@ class GoogleDrive:
     def upload_file(self, file_path, mimeType=None):
         mime_type = mimeType if mimeType else guess_type(file_path)[0]
         mime_type = mime_type if mime_type else "text/plain"
-        media_body = MediaFileUpload(
-            file_path,
-            mimetype=mime_type,
-            chunksize=150 * 1024 * 1024,
-            resumable=True,
-        )
+        controller = self._start_upload_session()
         filename = os.path.basename(file_path)
         filesize = humanbytes(os.path.getsize(file_path))
         body = {
@@ -284,16 +382,23 @@ class GoogleDrive:
         }
         LOGGER.info("Upload: %s", file_path)
         try:
-            uploaded_file = self._call(
-                lambda: self.__service.files()
-                .create(
-                    body=body,
-                    media_body=media_body,
-                    fields="id",
-                    supportsAllDrives=True,
-                )
-                .execute()
+            media_body = MediaFileUpload(
+                file_path,
+                mimetype=mime_type,
+                chunksize=controller.current_size,
+                resumable=True,
             )
+            request = self.__service.files().create(
+                body=body,
+                media_body=media_body,
+                fields="id",
+                supportsAllDrives=True,
+            )
+
+            def perform():
+                return self._perform_chunked_upload(request, controller)
+
+            uploaded_file = self._call(perform)
             file_id = uploaded_file.get("id")
             return Messages.UPLOADED_SUCCESSFULLY.format(
                 filename,
@@ -309,6 +414,8 @@ class GoogleDrive:
             return f"**ERROR:** ```{str(err).replace('>', '').replace('<', '')}```"
         except Exception as e:
             return f"**ERROR:** ```{e}```"
+        finally:
+            self._finish_upload_session()
 
     async def upload_file_with_progress(
         self,
@@ -320,12 +427,7 @@ class GoogleDrive:
     ):
         mime_type = mimeType if mimeType else guess_type(file_path)[0]
         mime_type = mime_type if mime_type else "text/plain"
-        media_body = MediaFileUpload(
-            file_path,
-            mimetype=mime_type,
-            chunksize=150 * 1024 * 1024,
-            resumable=True,
-        )
+        controller = self._start_upload_session()
         filename = os.path.basename(file_path)
         total_size = os.path.getsize(file_path)
         body = {
@@ -335,6 +437,12 @@ class GoogleDrive:
             "parents": [self.__parent_id],
         }
         loop = asyncio.get_running_loop()
+        media_body = MediaFileUpload(
+            file_path,
+            mimetype=mime_type,
+            chunksize=controller.current_size,
+            resumable=True,
+        )
         request = self.__service.files().create(
             body=body,
             media_body=media_body,
@@ -358,26 +466,14 @@ class GoogleDrive:
             else:
                 loop.call_soon_threadsafe(progress_callback, progress, total_size)
 
-        def wait_if_paused():
-            if pause_event is None:
-                return
-            while not pause_event.is_set():
-                if cancel_callback and cancel_callback():
-                    raise RuntimeError("cancelled")
-                time.sleep(0.2)
-
         def perform():
-            response = None
-            while response is None:
-                if cancel_callback and cancel_callback():
-                    raise RuntimeError("cancelled")
-                wait_if_paused()
-                status, response = request.next_chunk()
-                if cancel_callback and cancel_callback():
-                    raise RuntimeError("cancelled")
-                if status:
-                    dispatch(int(status.resumable_progress))
-            return response
+            return self._perform_chunked_upload(
+                request,
+                controller,
+                on_progress=dispatch,
+                pause_event=pause_event,
+                cancel_callback=cancel_callback,
+            )
 
         async def run_upload():
             try:
@@ -414,6 +510,8 @@ class GoogleDrive:
             return f"**ERROR:** ```{str(err).replace('>', '').replace('<', '')}```"
         except Exception as e:
             return f"**ERROR:** ```{e}```"
+        finally:
+            self._finish_upload_session()
 
     def checkFolderLink(self, link: str):
         try:
