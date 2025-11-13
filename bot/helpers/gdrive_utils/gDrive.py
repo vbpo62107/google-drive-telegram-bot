@@ -615,7 +615,8 @@ class GoogleDrive:
         controller = self._start_upload_session()
         filename = os.path.basename(file_path)
         total_size = os.path.getsize(file_path)
-        local_md5 = self._compute_file_md5(file_path)
+        loop = asyncio.get_running_loop()
+        local_md5 = await loop.run_in_executor(None, self._compute_file_md5, file_path)
         body = {
             "name": filename,
             "description": "Uploaded using @UploadGdriveBot",
@@ -632,7 +633,7 @@ class GoogleDrive:
                     controller._set_current(int(chunk_size_state))
                 except Exception:
                     LOGGER.debug("Failed to apply saved chunk size for %s", file_path, exc_info=True)
-        loop = asyncio.get_running_loop()
+        
 
         async def notify(progress):
             if not progress_callback:
