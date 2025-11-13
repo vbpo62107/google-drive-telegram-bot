@@ -27,11 +27,22 @@ from bot.helpers.utils import format_bytes, humanbytes
 class AdaptiveChunkController:
     _BASE_UNIT = 256 * 1024
 
-    def __init__(self, min_size=8 * 1024 * 1024, max_size=32 * 1024 * 1024, step=4 * 1024 * 1024):
+    def __init__(
+        self,
+        min_size=8 * 1024 * 1024,
+        max_size=32 * 1024 * 1024,
+        step=4 * 1024 * 1024,
+        initial_size: Optional[int] = None,
+    ):
         self._min = self._align_value(min_size)
         self._max = self._align_value(max_size)
         self._step = max(self._BASE_UNIT, self._align_value(step))
-        self._current = max(self._min, min(self._align_value(min_size), self._max))
+        start_value = initial_size if initial_size is not None else self._min
+        self._current = self._align_value(start_value)
+        if self._current < self._min:
+            self._current = self._min
+        if self._current > self._max:
+            self._current = self._max
         self._success_streak = 0
         self._failure_streak = 0
 
@@ -44,7 +55,12 @@ class AdaptiveChunkController:
         return self._current
 
     def _set_current(self, value: int) -> None:
-        self._current = max(self._min, min(self._align_value(value), self._max))
+        aligned = self._align_value(value)
+        if aligned < self._min:
+            aligned = self._min
+        if aligned > self._max:
+            aligned = self._max
+        self._current = aligned
 
     def apply_to(self, media) -> None:
         media.chunksize = self._align_value(self._current)
@@ -88,6 +104,7 @@ class GoogleDrive:
         self.__parent_id = parent_id or "root"
         self.__service = self.authorize(credentials)
         self._retryer = self._build_retryer()
+        self._preferred_chunk_size = 8 * 1024 * 1024
         self._active_chunk_controller: Optional[AdaptiveChunkController] = None
         if self._mode == "service_account" and SERVICE_ACCOUNT_GRANT_ACCESS:
             self._ensure_service_account_permissions(credentials)
@@ -128,11 +145,13 @@ class GoogleDrive:
         gDriveDB.reset_failures(self._user_id)
 
     def _start_upload_session(self) -> AdaptiveChunkController:
-        controller = AdaptiveChunkController()
+        controller = AdaptiveChunkController(initial_size=self._preferred_chunk_size)
         self._active_chunk_controller = controller
         return controller
 
     def _finish_upload_session(self) -> None:
+        if self._active_chunk_controller is not None:
+            self._preferred_chunk_size = self._active_chunk_controller.current_size
         self._active_chunk_controller = None
 
     def _call(self, func: Callable[[], Any]):
@@ -188,6 +207,7 @@ class GoogleDrive:
             try:
                 status, response = request.next_chunk()
                 controller.record_success()
+                self._preferred_chunk_size = controller.current_size
                 if cancel_callback and cancel_callback():
                     raise RuntimeError("cancelled")
                 if status and on_progress:
@@ -198,6 +218,7 @@ class GoogleDrive:
                 if isinstance(exc, RuntimeError) and str(exc) == "cancelled":
                     raise
                 controller.record_failure()
+                self._preferred_chunk_size = controller.current_size
                 controller.apply_to(media)
                 raise
         return response
