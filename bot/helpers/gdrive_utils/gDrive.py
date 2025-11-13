@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import inspect
 import json
 import logging
@@ -154,6 +155,98 @@ class GoogleDrive:
             self._preferred_chunk_size = self._active_chunk_controller.current_size
         self._active_chunk_controller = None
 
+    def _get_upload_state_path(self, file_path: str) -> str:
+        return f"{file_path}.upload_state"
+
+    def _load_upload_state(self, file_path: str, expected_size: Optional[int] = None):
+        path = self._get_upload_state_path(file_path)
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except Exception:
+            LOGGER.debug("Failed to read upload state for %s", file_path, exc_info=True)
+            self._clear_upload_state(file_path)
+            return None
+        if not isinstance(data, dict):
+            self._clear_upload_state(file_path)
+            return None
+        session_uri = data.get("session_uri")
+        progress = data.get("progress")
+        stored_size = data.get("total_size")
+        if expected_size is not None and stored_size not in (None, expected_size):
+            LOGGER.info("Discarding upload state for %s because file size changed", file_path)
+            self._clear_upload_state(file_path)
+            return None
+        if not session_uri or not isinstance(session_uri, str):
+            self._clear_upload_state(file_path)
+            return None
+        if not isinstance(progress, (int, float)):
+            self._clear_upload_state(file_path)
+            return None
+        data["progress"] = int(progress)
+        if "range_start" in data:
+            try:
+                data["range_start"] = int(data["range_start"])
+            except Exception:
+                data.pop("range_start", None)
+        if "range_end" in data:
+            try:
+                data["range_end"] = int(data["range_end"])
+            except Exception:
+                data.pop("range_end", None)
+        if "chunk_size" in data:
+            try:
+                data["chunk_size"] = int(data["chunk_size"])
+            except Exception:
+                data.pop("chunk_size", None)
+        return data
+
+    def _save_upload_state(
+        self,
+        file_path: str,
+        *,
+        session_uri: str,
+        progress: int,
+        chunk_size: int,
+        range_start: int,
+        total_size: int,
+    ) -> None:
+        if not session_uri:
+            return
+        path = self._get_upload_state_path(file_path)
+        directory = os.path.dirname(path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        data = {
+            "session_uri": session_uri,
+            "progress": int(progress),
+            "chunk_size": int(chunk_size) if chunk_size else chunk_size,
+            "range_start": int(range_start),
+            "range_end": int(progress),
+            "total_size": int(total_size),
+            "updated_at": time.time(),
+        }
+        tmp_path = f"{path}.tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as fh:
+                json.dump(data, fh)
+            os.replace(tmp_path, path)
+        except Exception:
+            LOGGER.debug("Failed to persist upload state for %s", file_path, exc_info=True)
+            with contextlib.suppress(OSError):
+                os.remove(tmp_path)
+
+    def _clear_upload_state(self, file_path: str) -> None:
+        path = self._get_upload_state_path(file_path)
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            return
+        except Exception:
+            LOGGER.debug("Failed to remove upload state for %s", file_path, exc_info=True)
+
     def _call(self, func: Callable[[], Any]):
         try:
             result = self._retryer(func)
@@ -189,6 +282,7 @@ class GoogleDrive:
         on_progress: Optional[Callable[[int], None]] = None,
         pause_event: Optional[threading.Event] = None,
         cancel_callback: Optional[Callable[[], bool]] = None,
+        on_chunk_success: Optional[Callable[[int, Any, Any], None]] = None,
     ):
         controller = controller or self._active_chunk_controller
         if controller is None:
@@ -212,6 +306,8 @@ class GoogleDrive:
                     raise RuntimeError("cancelled")
                 if status and on_progress:
                     on_progress(int(status.resumable_progress))
+                if status and on_chunk_success:
+                    on_chunk_success(int(status.resumable_progress), request, media)
                 if response is None:
                     controller.apply_to(media)
             except Exception as exc:
@@ -427,11 +523,18 @@ class GoogleDrive:
                 filesize,
             )
         except HttpError as err:
+            status = getattr(err.resp, "status", None)
+            session_not_found_statuses = {404, 410}
+            session_not_found_reasons = {"resumableNotFound"}
             if err.resp.get("content-type", "").startswith("application/json"):
                 reason = json.loads(err.content).get("error", {}).get("errors", [{}])[0].get("reason")
                 if reason in {"userRateLimitExceeded", "dailyLimitExceeded"}:
                     return Messages.RATE_LIMIT_EXCEEDED_MESSAGE
+                if reason in session_not_found_reasons or status in session_not_found_statuses:
+                    self._clear_upload_state(file_path)
                 return f"**ERROR:** {reason}"
+            if status in session_not_found_statuses:
+                self._clear_upload_state(file_path)
             return f"**ERROR:** ```{str(err).replace('>', '').replace('<', '')}```"
         except Exception as e:
             return f"**ERROR:** ```{e}```"
@@ -457,19 +560,17 @@ class GoogleDrive:
             "mimeType": mime_type,
             "parents": [self.__parent_id],
         }
+        existing_state = self._load_upload_state(file_path, total_size)
+        initial_resume_progress = 0
+        if existing_state:
+            initial_resume_progress = int(existing_state.get("progress", 0))
+            chunk_size_state = existing_state.get("chunk_size")
+            if chunk_size_state:
+                try:
+                    controller._set_current(int(chunk_size_state))
+                except Exception:
+                    LOGGER.debug("Failed to apply saved chunk size for %s", file_path, exc_info=True)
         loop = asyncio.get_running_loop()
-        media_body = MediaFileUpload(
-            file_path,
-            mimetype=mime_type,
-            chunksize=controller.current_size,
-            resumable=True,
-        )
-        request = self.__service.files().create(
-            body=body,
-            media_body=media_body,
-            fields="id",
-            supportsAllDrives=True,
-        )
 
         async def notify(progress):
             if not progress_callback:
@@ -487,13 +588,64 @@ class GoogleDrive:
             else:
                 loop.call_soon_threadsafe(progress_callback, progress, total_size)
 
+        def make_request():
+            state = self._load_upload_state(file_path, total_size)
+            progress = 0
+            if state:
+                progress = int(state.get("progress", 0))
+            media_body = MediaFileUpload(
+                file_path,
+                mimetype=mime_type,
+                chunksize=controller.current_size,
+                resumable=True,
+            )
+            request = self.__service.files().create(
+                body=body.copy(),
+                media_body=media_body,
+                fields="id",
+                supportsAllDrives=True,
+            )
+            if state:
+                session_uri = state.get("session_uri")
+                if session_uri:
+                    request.resumable_uri = session_uri
+            if progress:
+                try:
+                    stream = media_body.stream()
+                    stream.seek(progress)
+                except Exception:
+                    LOGGER.debug("Failed to seek upload stream for %s", file_path, exc_info=True)
+                try:
+                    media_body._progress = progress
+                except AttributeError:
+                    setattr(media_body, "_progress", progress)
+            return request, media_body, progress
+
         def perform():
+            request, media_body, starting_progress = make_request()
+            last_progress = starting_progress
+
+            def handle_chunk(progress, req, media):
+                nonlocal last_progress
+                session_uri = getattr(req, "resumable_uri", None)
+                if session_uri:
+                    self._save_upload_state(
+                        file_path,
+                        session_uri=session_uri,
+                        progress=progress,
+                        chunk_size=getattr(media, "chunksize", controller.current_size),
+                        range_start=last_progress,
+                        total_size=total_size,
+                    )
+                last_progress = progress
+
             return self._perform_chunked_upload(
                 request,
                 controller,
                 on_progress=dispatch,
                 pause_event=pause_event,
                 cancel_callback=cancel_callback,
+                on_chunk_success=handle_chunk,
             )
 
         async def run_upload():
@@ -503,9 +655,10 @@ class GoogleDrive:
                 raise exc
 
         try:
-            await notify(0)
+            await notify(initial_resume_progress)
             uploaded_file = await run_upload()
             await notify(total_size)
+            self._clear_upload_state(file_path)
             file_id = uploaded_file.get("id")
             filesize = format_bytes(total_size)
             return Messages.UPLOADED_SUCCESSFULLY.format(
