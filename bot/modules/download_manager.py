@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlparse, urljoin
 
 import aiofiles
 import httpx
@@ -83,40 +83,41 @@ class DirectLinkFetcher(Fetcher):
         self.max_size = max_size
         self.limits = httpx.Limits(max_connections=8, max_keepalive_connections=4)
         self.timeout = httpx.Timeout(30.0, connect=10.0, read=60.0)
+        self.max_redirects = 5
 
     async def fetch(self, client: Client, message, **kwargs) -> FetchResult:
         url = kwargs.get("url")
         preferred = kwargs.get("preferred_name")
         if not url:
             raise FetchError("缺少下载链接")
-        parsed = urlparse(url)
-        if parsed.scheme not in {"http", "https"}:
-            raise FetchError("仅支持 HTTP/HTTPS 链接")
-        if parsed.hostname is None:
-            raise FetchError("链接无效")
-        addresses = await self._resolve(parsed.hostname)
-        if not addresses:
-            raise FetchError("无法解析主机地址")
-        for ip in addresses:
-            if self._is_forbidden_ip(ip):
-                raise FetchError("链接指向受限地址")
+        resolver_cache: dict[str, set[str]] = {}
+        await self._assert_safe_destination(url, resolver_cache)
         headers = {"User-Agent": USER_AGENT}
-        async with httpx.AsyncClient(limits=self.limits, timeout=self.timeout, follow_redirects=True) as session:
-            head = await self._head(session, url, headers)
+        async with httpx.AsyncClient(limits=self.limits, timeout=self.timeout, follow_redirects=False) as session:
+            head = await self._head(session, url, headers, resolver_cache)
             mime_type = None
             size_hint = None
             filename = None
             if head is not None:
-                mime_type = self._normalize_type(head.headers.get("Content-Type"))
-                size_hint = self._parse_length(head.headers.get("Content-Length"))
-                filename = self._extract_filename(head.headers.get("Content-Disposition"))
-                if size_hint and size_hint > self.max_size:
-                    raise FetchError("文件大小超出限制")
-                if mime_type and not self._is_allowed_type(mime_type):
-                    raise FetchError("文件类型不在白名单内")
+                try:
+                    mime_type = self._normalize_type(head.headers.get("Content-Type"))
+                    size_hint = self._parse_length(head.headers.get("Content-Length"))
+                    filename = self._extract_filename(head.headers.get("Content-Disposition"))
+                    if size_hint and size_hint > self.max_size:
+                        raise FetchError("文件大小超出限制")
+                    if mime_type and not self._is_allowed_type(mime_type):
+                        raise FetchError("文件类型不在白名单内")
+                finally:
+                    head.close()
             try:
-                async with session.stream("GET", url, headers=headers) as response:
-                    response.raise_for_status()
+                response, final_url = await self._follow_redirects(
+                    session, "GET", url, headers, resolver_cache, stream=True
+                )
+                try:
+                    try:
+                        response.raise_for_status()
+                    except httpx.HTTPStatusError as exc:
+                        raise FetchError(str(exc)) from exc
                     if mime_type is None:
                         mime_type = self._normalize_type(response.headers.get("Content-Type"))
                         if mime_type and not self._is_allowed_type(mime_type):
@@ -129,7 +130,7 @@ class DirectLinkFetcher(Fetcher):
                     if not filename:
                         filename = self._extract_filename(response.headers.get("Content-Disposition"))
                     if not filename:
-                        candidate = Path(unquote(parsed.path or "")).name
+                        candidate = Path(unquote(urlparse(final_url).path or "")).name
                         filename = sanitize_filename(candidate or self._guess_filename(mime_type))
                     else:
                         filename = sanitize_filename(filename)
@@ -151,20 +152,31 @@ class DirectLinkFetcher(Fetcher):
                         with contextlib.suppress(FileNotFoundError):
                             os.remove(temp_path)
                         raise
+                finally:
+                    await response.aclose()
             except httpx.RequestError as exc:
                 raise FetchError(str(exc))
         raise FetchError("下载失败")
 
-    async def _head(self, session: httpx.AsyncClient, url: str, headers: dict) -> Optional[httpx.Response]:
+    async def _head(
+        self,
+        session: httpx.AsyncClient,
+        url: str,
+        headers: dict,
+        cache: dict[str, set[str]],
+    ) -> Optional[httpx.Response]:
         try:
-            response = await session.head(url, headers=headers)
-            if response.is_error:
-                return None
-            return response
-        except httpx.HTTPStatusError:
-            return None
+            response, _ = await self._follow_redirects(
+                session, "HEAD", url, headers, cache, stream=False
+            )
+        except FetchError:
+            raise
         except httpx.RequestError:
             return None
+        if response.is_error:
+            response.close()
+            return None
+        return response
 
     async def _resolve(self, hostname: str) -> set[str]:
         loop = asyncio.get_running_loop()
@@ -197,6 +209,75 @@ class DirectLinkFetcher(Fetcher):
             return int(value)
         except (TypeError, ValueError):
             return None
+
+    async def _assert_safe_destination(
+        self, url: str, cache: dict[str, set[str]]
+    ) -> None:
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"}:
+            raise FetchError("仅支持 HTTP/HTTPS 链接")
+        if parsed.hostname is None:
+            raise FetchError("链接无效")
+        host = parsed.hostname
+        addresses = cache.get(host)
+        if addresses is None:
+            addresses = await self._resolve(host)
+            cache[host] = addresses
+        if not addresses:
+            raise FetchError("无法解析主机地址")
+        for ip in addresses:
+            if self._is_forbidden_ip(ip):
+                raise FetchError("链接指向受限地址")
+
+    async def _follow_redirects(
+        self,
+        session: httpx.AsyncClient,
+        method: str,
+        url: str,
+        headers: dict,
+        cache: dict[str, set[str]],
+        *,
+        stream: bool,
+    ) -> tuple[httpx.Response, str]:
+        visited: set[str] = {str(httpx.URL(url))}
+        current = url
+        for _ in range(self.max_redirects):
+            await self._assert_safe_destination(current, cache)
+            request = session.build_request(method, current, headers=headers)
+            response = await session.send(request, stream=stream)
+            if response.is_redirect:
+                location = response.headers.get("Location")
+                if not location:
+                    if stream:
+                        await response.aclose()
+                    else:
+                        response.close()
+                    raise FetchError("重定向缺少目标")
+                next_url = urljoin(str(response.request.url), location)
+                await self._assert_safe_destination(next_url, cache)
+                try:
+                    normalized = str(httpx.URL(next_url))
+                except httpx.InvalidURL as exc:
+                    if stream:
+                        await response.aclose()
+                    else:
+                        response.close()
+                    raise FetchError("重定向目标无效") from exc
+                if normalized in visited:
+                    if stream:
+                        await response.aclose()
+                    else:
+                        response.close()
+                    raise FetchError("检测到重定向循环")
+                visited.add(normalized)
+                if stream:
+                    await response.aclose()
+                else:
+                    response.close()
+                current = normalized
+                continue
+            return response, str(response.request.url)
+        raise FetchError("重定向过多")
 
     def _normalize_type(self, value: Optional[str]) -> Optional[str]:
         if not value:

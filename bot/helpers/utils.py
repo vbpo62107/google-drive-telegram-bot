@@ -5,11 +5,25 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from pyrogram import filters
 
+from bot import DEFAULT_AUTH_MODE
+from bot.helpers.gdrive_utils.credentials_manager import credential_manager
 from bot.helpers.sql_helper import gDriveDB
 
 
+def _is_authorized_user(_, __, message) -> bool:
+    user = getattr(message, "from_user", None)
+    user_id = getattr(user, "id", None)
+    if user_id is None:
+        return False
+    if gDriveDB.is_authorized(user_id):
+        return True
+    if DEFAULT_AUTH_MODE == "service_account" and credential_manager.service_account_available():
+        return True
+    return False
+
+
 class CustomFilters:
-    auth_users = filters.create(lambda _, __, message: bool(gDriveDB.is_authorized(message.from_user.id)))
+    auth_users = filters.create(_is_authorized_user)
 
 
 def format_bytes(size: int) -> str:
