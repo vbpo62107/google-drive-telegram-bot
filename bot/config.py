@@ -69,6 +69,7 @@ class Messages:
     DOWNLOADED_SUCCESSFULLY = "📤 **上传文件中...**\n**Filename:** ```{}```\n**Size:** ```{}```"
     
     UPLOADED_SUCCESSFULLY = "✅ **上传成功.**\n[{}]({}) __({})__"
+    CHECKSUM_MISMATCH = "❗ **上传失败.**\n__文件 `{}` 校验和不匹配, 已从Google云端硬盘删除.__"
     
     DOWNLOAD_ERROR = "❗**下载失败**\n{}\n__Link - {}__"
 

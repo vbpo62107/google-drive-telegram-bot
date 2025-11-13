@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import hashlib
 import inspect
 import json
 import logging
@@ -158,7 +159,12 @@ class GoogleDrive:
     def _get_upload_state_path(self, file_path: str) -> str:
         return f"{file_path}.upload_state"
 
-    def _load_upload_state(self, file_path: str, expected_size: Optional[int] = None):
+    def _load_upload_state(
+        self,
+        file_path: str,
+        expected_size: Optional[int] = None,
+        expected_md5: Optional[str] = None,
+    ):
         path = self._get_upload_state_path(file_path)
         if not os.path.exists(path):
             return None
@@ -179,6 +185,12 @@ class GoogleDrive:
             LOGGER.info("Discarding upload state for %s because file size changed", file_path)
             self._clear_upload_state(file_path)
             return None
+        stored_md5 = data.get("md5")
+        if expected_md5 is not None:
+            if not stored_md5 or stored_md5 != expected_md5:
+                LOGGER.info("Discarding upload state for %s because checksum changed", file_path)
+                self._clear_upload_state(file_path)
+                return None
         if not session_uri or not isinstance(session_uri, str):
             self._clear_upload_state(file_path)
             return None
@@ -212,6 +224,7 @@ class GoogleDrive:
         chunk_size: int,
         range_start: int,
         total_size: int,
+        checksum: Optional[str] = None,
     ) -> None:
         if not session_uri:
             return
@@ -228,6 +241,8 @@ class GoogleDrive:
             "total_size": int(total_size),
             "updated_at": time.time(),
         }
+        if checksum:
+            data["md5"] = checksum
         tmp_path = f"{path}.tmp"
         try:
             with open(tmp_path, "w", encoding="utf-8") as fh:
@@ -261,6 +276,48 @@ class GoogleDrive:
         except Exception as exc:
             self._record_failure(exc)
             raise
+
+    def _compute_file_md5(self, file_path: str) -> Optional[str]:
+        try:
+            digest = hashlib.md5()
+            with open(file_path, "rb") as fh:
+                for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            return digest.hexdigest()
+        except Exception:
+            LOGGER.debug("Failed to compute MD5 for %s", file_path, exc_info=True)
+            return None
+
+    def _verify_remote_checksum(
+        self, file_id: Optional[str], local_md5: Optional[str], filename: str
+    ) -> Optional[str]:
+        if not file_id or not local_md5:
+            return None
+        try:
+            metadata = self._call(
+                lambda: self.__service.files()
+                .get(
+                    fileId=file_id,
+                    fields="md5Checksum,headRevisionId",
+                    supportsAllDrives=True,
+                )
+                .execute()
+            )
+        except Exception as exc:
+            LOGGER.error("Failed to verify checksum for %s", file_id, exc_info=True)
+            return f"**ERROR:** ```{str(exc).replace('>', '').replace('<', '')}```"
+        remote_md5 = metadata.get("md5Checksum")
+        if remote_md5 and remote_md5 != local_md5:
+            try:
+                self._call(
+                    lambda: self.__service.files()
+                    .delete(fileId=file_id, supportsAllDrives=True)
+                    .execute()
+                )
+            except Exception:
+                LOGGER.error("Failed to delete file %s after checksum mismatch", file_id, exc_info=True)
+            return Messages.CHECKSUM_MISMATCH.format(filename)
+        return None
 
     def _wait_if_paused(
         self,
@@ -491,6 +548,7 @@ class GoogleDrive:
         controller = self._start_upload_session()
         filename = os.path.basename(file_path)
         filesize = humanbytes(os.path.getsize(file_path))
+        local_md5 = self._compute_file_md5(file_path)
         body = {
             "name": filename,
             "description": "Uploaded using @UploadGdriveBot",
@@ -517,6 +575,9 @@ class GoogleDrive:
 
             uploaded_file = self._call(perform)
             file_id = uploaded_file.get("id")
+            checksum_error = self._verify_remote_checksum(file_id, local_md5, filename)
+            if checksum_error:
+                return checksum_error
             return Messages.UPLOADED_SUCCESSFULLY.format(
                 filename,
                 self.__G_DRIVE_BASE_DOWNLOAD_URL.format(file_id),
@@ -554,13 +615,14 @@ class GoogleDrive:
         controller = self._start_upload_session()
         filename = os.path.basename(file_path)
         total_size = os.path.getsize(file_path)
+        local_md5 = self._compute_file_md5(file_path)
         body = {
             "name": filename,
             "description": "Uploaded using @UploadGdriveBot",
             "mimeType": mime_type,
             "parents": [self.__parent_id],
         }
-        existing_state = self._load_upload_state(file_path, total_size)
+        existing_state = self._load_upload_state(file_path, total_size, local_md5)
         initial_resume_progress = 0
         if existing_state:
             initial_resume_progress = int(existing_state.get("progress", 0))
@@ -589,7 +651,7 @@ class GoogleDrive:
                 loop.call_soon_threadsafe(progress_callback, progress, total_size)
 
         def make_request():
-            state = self._load_upload_state(file_path, total_size)
+            state = self._load_upload_state(file_path, total_size, local_md5)
             progress = 0
             if state:
                 progress = int(state.get("progress", 0))
@@ -636,6 +698,7 @@ class GoogleDrive:
                         chunk_size=getattr(media, "chunksize", controller.current_size),
                         range_start=last_progress,
                         total_size=total_size,
+                        checksum=local_md5,
                     )
                 last_progress = progress
 
@@ -660,6 +723,9 @@ class GoogleDrive:
             await notify(total_size)
             self._clear_upload_state(file_path)
             file_id = uploaded_file.get("id")
+            checksum_error = self._verify_remote_checksum(file_id, local_md5, filename)
+            if checksum_error:
+                return checksum_error
             filesize = format_bytes(total_size)
             return Messages.UPLOADED_SUCCESSFULLY.format(
                 filename,
