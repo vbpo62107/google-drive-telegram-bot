@@ -1,86 +1,145 @@
-import re
-import json
-from httplib2 import Http
-from bot import LOGGER, G_DRIVE_CLIENT_ID, G_DRIVE_CLIENT_SECRET
-from bot.config import Messages
+import urllib.parse as urlparse
+from dataclasses import dataclass
+from typing import Dict, Optional
+
+from google_auth_oauthlib.flow import Flow
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from oauth2client.client import OAuth2WebServerFlow, FlowExchangeError
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+from bot import (
+    G_DRIVE_CLIENT_ID,
+    G_DRIVE_CLIENT_SECRET,
+    LOGGER,
+    OAUTH_SCOPE,
+)
+from bot.config import BotCommands, Messages
+from bot.helpers.gdrive_utils.credentials_manager import credential_manager
 from bot.helpers.sql_helper import gDriveDB
-from bot.modules.drive_helper import invalidate_drive_instance
-from bot.config import BotCommands
 from bot.helpers.utils import CustomFilters
+from bot.modules.drive_helper import invalidate_drive_instance
 
 
-OAUTH_SCOPE = "https://www.googleapis.com/auth/drive"
-REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+LOOPBACK_REDIRECT_URI = "http://127.0.0.1:53682/oauth2callback"
 
-flow = None
+
+@dataclass
+class PendingFlow:
+    flow: Flow
+    device: str
+    state: Optional[str]
+
+
+def _build_flow() -> Flow:
+    config = {
+        "installed": {
+            "client_id": G_DRIVE_CLIENT_ID,
+            "client_secret": G_DRIVE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+        }
+    }
+    flow = Flow.from_client_config(config, scopes=[OAUTH_SCOPE])
+    flow.redirect_uri = LOOPBACK_REDIRECT_URI
+    return flow
+
+
+def _sanitize_device_label(user_id: int, label: Optional[str]) -> str:
+    base = label.strip() if label else f"telegram:{user_id}"
+    cleaned = " ".join(base.split())
+    return cleaned[:64] if cleaned else f"telegram:{user_id}"
+
+
+def _parse_code(text: str) -> tuple[Optional[str], Optional[str]]:
+    stripped = text.strip()
+    if "code=" in stripped:
+        parsed = urlparse.urlparse(stripped)
+        query = urlparse.parse_qs(parsed.query)
+        code = query.get("code", [None])[-1]
+        state = query.get("state", [None])[-1]
+        return code, state
+    return stripped or None, None
+
+
+pending_flows: Dict[int, PendingFlow] = {}
+
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Authorize))
 async def _auth(client, message):
-  user_id = message.from_user.id
-  creds = gDriveDB.search(user_id)
-  if creds is not None:
-    creds.refresh(Http())
-    gDriveDB._set(user_id, creds)
-    invalidate_drive_instance(user_id)
-    await message.reply_text(Messages.ALREADY_AUTH, quote=True)
-  else:
-    global flow
+    user_id = message.from_user.id
+    text = message.text or ""
+    parts = text.split(maxsplit=1)
+    device_label = _sanitize_device_label(user_id, parts[1] if len(parts) > 1 else None)
+    record = gDriveDB.search(user_id)
+    if record and record.is_oauth():
+        try:
+            credential_manager.build_credentials(user_id, record)
+            gDriveDB.reset_failures(user_id)
+            invalidate_drive_instance(user_id)
+            await message.reply_text(Messages.ALREADY_AUTH, quote=True)
+            return
+        except Exception as exc:
+            LOGGER.warning("Failed to refresh existing credentials for %s: %s", user_id, exc)
     try:
-      flow = OAuth2WebServerFlow(
-              G_DRIVE_CLIENT_ID,
-              G_DRIVE_CLIENT_SECRET,
-              OAUTH_SCOPE,
-              redirect_uri=REDIRECT_URI
-      )
-      auth_url = flow.step1_get_authorize_url()
-      LOGGER.info(f'AuthURL:{user_id}')
-      await message.reply_text(
-        text=Messages.AUTH_TEXT.format(auth_url),
-        quote=True,
-        reply_markup=InlineKeyboardMarkup(
-                  [[InlineKeyboardButton("Authorization URL", url=auth_url)]]
-              )
+        flow = _build_flow()
+        auth_url, state = flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent",
         )
-    except Exception as e:
-      await message.reply_text(f"**ERROR:** ```{e}```", quote=True)
+        pending_flows[user_id] = PendingFlow(flow=flow, device=device_label, state=state)
+        LOGGER.info("AuthURL:%s", user_id)
+        await message.reply_text(
+            text=Messages.AUTH_TEXT.format(auth_url),
+            quote=True,
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Authorization URL", url=auth_url)]]),
+        )
+    except Exception as exc:
+        await message.reply_text(f"**ERROR:** ```{exc}```", quote=True)
+
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Revoke) & CustomFilters.auth_users)
-def _revoke(client, message):
-  user_id = message.from_user.id
-  try:
-    gDriveDB._clear(user_id)
-    invalidate_drive_instance(user_id)
-    LOGGER.info(f'Revoked:{user_id}')
-    message.reply_text(Messages.REVOKED, quote=True)
-  except Exception as e:
-    message.reply_text(f"**ERROR:** ```{e}```", quote=True)
+async def _revoke(client, message):
+    user_id = message.from_user.id
+    try:
+        gDriveDB._clear(user_id)
+        pending_flows.pop(user_id, None)
+        invalidate_drive_instance(user_id)
+        LOGGER.info("Revoked:%s", user_id)
+        await message.reply_text(Messages.REVOKED, quote=True)
+    except Exception as exc:
+        await message.reply_text(f"**ERROR:** ```{exc}```", quote=True)
 
 
-@Client.on_message(filters.private & filters.incoming & filters.text & ~CustomFilters.auth_users)
+@Client.on_message(filters.private & filters.incoming & filters.text)
 async def _token(client, message):
-  token = message.text.split()[-1]
-  WORD = len(token)
-  if WORD == 62 and token[1] == "/":
-    creds = None
-    global flow
-    if flow:
-      try:
-        user_id = message.from_user.id
-        sent_message = await message.reply_text("🕵️**Checking received code...**", quote=True)
-        creds = flow.step2_exchange(message.text)
-        gDriveDB._set(user_id, creds)
-        LOGGER.info(f'AuthSuccess: {user_id}')
+    user_id = message.from_user.id
+    entry = pending_flows.get(user_id)
+    if not entry:
+        return
+    code, state = _parse_code(message.text or "")
+    if not code:
+        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True)
+        return
+    if entry.state and state and state != entry.state:
+        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True)
+        return
+    sent_message = await message.reply_text("🕵️**Checking received code...**", quote=True)
+    try:
+        entry.flow.fetch_token(code=code)
+        credentials = entry.flow.credentials
+        payload, fingerprint = credential_manager.serialize_oauth(credentials)
+        gDriveDB.save_credentials(
+            user_id,
+            mode="oauth",
+            payload=payload,
+            fingerprint=fingerprint,
+            device=entry.device,
+        )
+        gDriveDB.reset_failures(user_id)
         invalidate_drive_instance(user_id)
         await sent_message.edit(Messages.AUTH_SUCCESSFULLY)
-        flow = None
-      except FlowExchangeError:
+    except Exception as exc:
+        LOGGER.error("Auth failed for %s: %s", user_id, exc)
         await sent_message.edit(Messages.INVALID_AUTH_CODE)
-      except Exception as e:
-        await sent_message.edit(f"**ERROR:** ```{e}```")
-    else:
-        await message.reply_text(Messages.FLOW_IS_NONE, quote=True)
+    finally:
+        pending_flows.pop(user_id, None)

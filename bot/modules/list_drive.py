@@ -5,7 +5,7 @@ from bot import SUDO_USERS
 from bot.config import BotCommands, Messages
 from bot.helpers.sql_helper import gDriveDB, idsDB
 from bot.helpers.utils import format_bytes
-from bot.modules.drive_helper import get_drive_instance
+from bot.modules.drive_helper import DriveAccessError, drive_error_message, get_drive_instance
 
 FOLDER_MIME = "application/vnd.google-apps.folder"
 MAX_MESSAGE_LENGTH = 4000
@@ -131,13 +131,16 @@ async def list_drive_handler(client, message):
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
         return
     user_id = message.from_user.id
-    if not gDriveDB.search(user_id):
+    if not gDriveDB.is_authorized(user_id):
         await client.send_message(message.chat.id, Messages.NOT_AUTH)
         return
     parts = (message.text or "").split(maxsplit=1)
     target = parts[1] if len(parts) > 1 else ""
     try:
         drive = await get_drive_instance(user_id)
+    except DriveAccessError as exc:
+        await client.send_message(message.chat.id, drive_error_message(exc.code))
+        return
     except Exception as exc:
         await client.send_message(message.chat.id, f"❌ {exc}")
         return

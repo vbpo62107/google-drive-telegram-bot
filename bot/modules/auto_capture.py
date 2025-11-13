@@ -23,8 +23,7 @@ from bot.modules.task_manager import task_manager
 
 async def _resolve_owner() -> int:
     for user_id in SUDO_USERS:
-        creds = await asyncio.to_thread(gDriveDB.search, user_id)
-        if creds:
+        if gDriveDB.is_authorized(user_id):
             return user_id
     return 0
 
