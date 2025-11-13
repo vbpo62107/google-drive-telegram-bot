@@ -523,11 +523,18 @@ class GoogleDrive:
                 filesize,
             )
         except HttpError as err:
+            status = getattr(err.resp, "status", None)
+            session_not_found_statuses = {404, 410}
+            session_not_found_reasons = {"resumableNotFound"}
             if err.resp.get("content-type", "").startswith("application/json"):
                 reason = json.loads(err.content).get("error", {}).get("errors", [{}])[0].get("reason")
                 if reason in {"userRateLimitExceeded", "dailyLimitExceeded"}:
                     return Messages.RATE_LIMIT_EXCEEDED_MESSAGE
+                if reason in session_not_found_reasons or status in session_not_found_statuses:
+                    self._clear_upload_state(file_path)
                 return f"**ERROR:** {reason}"
+            if status in session_not_found_statuses:
+                self._clear_upload_state(file_path)
             return f"**ERROR:** ```{str(err).replace('>', '').replace('<', '')}```"
         except Exception as e:
             return f"**ERROR:** ```{e}```"
