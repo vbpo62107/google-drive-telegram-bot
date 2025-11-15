@@ -549,7 +549,7 @@ async def download_handler(client, message):
         return
     url, name = _parse_url_argument(message)
     if not url:
-        await client.send_message(message.chat.id, Messages.PROVIDE_GDRIVE_URL.format(BotCommands.Download[0]))
+        await client.send_message(message.chat.id, Messages.DOWNLOAD_USAGE)
         return
     preferred = sanitize_filename(name) if name else None
     fetcher = DirectLinkFetcher(DOWNLOAD_PATH, MAX_MIRROR_FILE_SIZE)

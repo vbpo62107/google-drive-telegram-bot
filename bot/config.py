@@ -111,6 +111,11 @@ class Messages:
     CLONING = "🗂️ **克隆到Google云端硬盘...**\n__G-Drive 链接 - {}__"
     
     PROVIDE_GDRIVE_URL = "**❗ 提供有效的Google云端硬盘网址和命令.**\n__Usage - /{} (GDrive Link)__"
+    DOWNLOAD_USAGE = (
+        "❗ **请提供可下载的内容.**\n"
+        f"__可以直接发送可下载链接，或使用__ `/{BotCommands.Download[0]} 链接 | 自定义文件名` __指定文件名.__\n"
+        f"__若要处理电报媒体，请回复目标消息并发送__ `/{BotCommands.Download[0]}` __，同样支持通过 `|` 指定文件名.__"
+    )
     
     INSUFFICIENT_PERMISSONS = "❗ **您对此文件的权限不足.**\n__File id - {}__"
     
