@@ -6,6 +6,7 @@ from sys import executable
 from pyrogram import Client, filters
 from pyrogram.errors import FloodWait, RPCError
 from bot import SUDO_USERS, DOWNLOAD_DIRECTORY, LOGGER
+from bot.helpers.utils import get_floodwait_seconds
 
 
 @Client.on_message(filters.private & filters.incoming & filters.command(['log']) & filters.user(SUDO_USERS), group=2)
@@ -20,7 +21,8 @@ def _send_log(client, message):
         )
       LOGGER.info(f'Log file sent to {message.from_user.id}')
     except FloodWait as e:
-      sleep(e.x)
+      wait_seconds = get_floodwait_seconds(e) or 1
+      sleep(wait_seconds)
     except RPCError as e:
       message.reply_text(e, quote=True)
 
