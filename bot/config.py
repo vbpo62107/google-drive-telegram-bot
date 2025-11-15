@@ -3,7 +3,7 @@ class config:
     APP_ID = "123456"
     API_HASH = "YOUR_API_HASH"
     DATABASE_URL = "postgres://username:password@host:5432/database"
-    SUDO_USERS = "123456789"  # Sepearted by space.
+    SUDO_USERS = "123456789"  # Space separated Telegram user IDs.
     SUPPORT_CHAT_LINK = "https://your-support-link"
     DOWNLOAD_DIRECTORY = "./downloads/"
     G_DRIVE_CLIENT_ID = "your-google-client-id"
