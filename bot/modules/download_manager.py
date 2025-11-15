@@ -25,7 +25,7 @@ from pyrogram.file_id import FileId
 
 from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS
 from bot.config import BotCommands, Messages
-from bot.helpers.utils import CustomFilters, humanbytes
+from bot.helpers.utils import CustomFilters, humanbytes, get_floodwait_seconds
 from bot.modules.drive_helper import DriveAccessError, drive_error_message
 from bot.modules.gdriveTools import GoogleDriveHelper
 
@@ -354,8 +354,10 @@ class TelegramFetcher(Fetcher):
                 await asyncio.sleep(1)
                 continue
             except FloodWait as exc:
-                last_error = f"请求过于频繁，请 {exc.value} 秒后重试"
-                await asyncio.sleep(exc.value + 1)
+                wait_seconds = get_floodwait_seconds(exc)
+                sleep_seconds = wait_seconds if wait_seconds > 0 else 1
+                last_error = f"请求过于频繁，请 {sleep_seconds} 秒后重试"
+                await asyncio.sleep(sleep_seconds + (1 if wait_seconds > 0 else 0))
                 continue
             except RPCError as exc:
                 last_error = str(exc)

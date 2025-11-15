@@ -4,6 +4,7 @@ import re
 from urllib.parse import parse_qs, unquote, urlparse
 
 from pyrogram import filters
+from pyrogram.errors import FloodWait
 
 from bot import DEFAULT_AUTH_MODE
 from bot.helpers.gdrive_utils.credentials_manager import credential_manager
@@ -24,6 +25,16 @@ def _is_authorized_user(_, __, message) -> bool:
 
 class CustomFilters:
     auth_users = filters.create(_is_authorized_user)
+
+
+def get_floodwait_seconds(exc: FloodWait) -> int:
+    value = getattr(exc, "value", None)
+    if value is None:
+        value = getattr(exc, "x", 0)
+    try:
+        return max(int(value), 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def format_bytes(size: int) -> str:
