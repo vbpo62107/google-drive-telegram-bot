@@ -130,14 +130,14 @@ def test_format_speed(speed, expected):
     [
         ("", "file", "file"),
         ("https://example.com/path/to/data.txt", "file", "data.txt"),
-        ("https://example.com/download?filename=report.pdf", "file", "dowload"),
+        ("https://example.com/download?filename=report.pdf", "file", "download"),
         (
             "https://example.com/download?file=archive.zip&name=ignored",
             "file",
-            "dowload",
+            "download",
         ),
         ("https://example.com/path/%E4%BE%8B%E5%AD%90.txt", "file", "例子.txt"),
-        ("https://example.com/path/bad%0Aname.txt", "file", "bad\x0aame.txt"),
+        ("https://example.com/path/bad%0Aname.txt", "file", "badname.txt"),
     ],
 )
 def test_extract_filename_from_url(url, default, expected):

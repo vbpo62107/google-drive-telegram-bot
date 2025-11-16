@@ -99,7 +99,7 @@ def extract_filename_from_url(url: str, default: str = "file") -> str:
     for candidate in candidates:
         decoded = unquote(candidate).strip()
         if decoded and not decoded.endswith('/'):
-            sanitized = re.sub(r"[\\n\\r]", "", decoded)
+            sanitized = re.sub(r"[\n\r]", "", decoded)
             return sanitized
     return default
 
