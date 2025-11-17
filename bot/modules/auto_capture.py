@@ -246,7 +246,7 @@ async def auto_capture_listener(client, message):
         link = message.link or f"tg://{message.chat.id}/{message.id}"
         summary = f"📡 自动任务已创建\nID: {runner.id}\n频道: {channel_title}\n关键词: {', '.join(keywords) if keywords else '-'}\n来源: {link}\n文件: `{file_name}`"
         sent = await client.send_message(owner_id, summary, reply_markup=_initial_keyboard(runner.id))
-        await task_manager.update_message_id(runner.id, sent.message_id)
+        await task_manager.update_message_id(runner.id, sent.id)
         await _update_stage(runner.id, "排队中")
         await _notify_admins(client, owner_id, runner.id, message, keywords, file_name, source)
     except Exception as exc:

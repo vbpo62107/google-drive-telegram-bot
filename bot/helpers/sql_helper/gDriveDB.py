@@ -18,7 +18,7 @@ from bot import (
     OAUTH_SCOPE,
     TOKEN_ENCRYPTION_KEY,
 )
-from bot.helpers.sql_helper import BASE, get_session
+from bot.helpers.sql_helper import BASE, ENGINE, get_session
 
 
 @dataclass
@@ -58,19 +58,15 @@ class gDriveCreds(BASE):
     failure_count = Column(Integer, default=0)
     circuit_until = Column(DateTime)
 
-
-gDriveCreds.__table__.create(checkfirst=True)
-
 INSERTION_LOCK = threading.RLock()
 _CACHE = TTLCache(maxsize=256, ttl=1800)
 _FERNET: Optional[Fernet] = None
 
 
 def _ensure_columns():
-    engine = BASE.metadata.bind
-    if engine is None:
+    inspector = inspect(ENGINE)
+    if "gDrive" not in inspector.get_table_names():
         return
-    inspector = inspect(engine)
     existing = {column["name"] for column in inspector.get_columns("gDrive")}
     statements = []
     if "mode" not in existing:
@@ -87,7 +83,7 @@ def _ensure_columns():
         statements.append("ALTER TABLE \"gDrive\" ADD COLUMN circuit_until TIMESTAMP NULL")
     if not statements:
         return
-    with engine.connect() as connection:
+    with ENGINE.connect() as connection:
         for statement in statements:
             try:
                 connection.execute(text(statement))

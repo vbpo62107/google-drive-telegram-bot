@@ -61,7 +61,7 @@ async def mirror_handler(client, message):
             f"📥 任务已创建\nID: {runner.id}\n文件: `{filename}`\n状态: 排队中",
             reply_markup=_initial_keyboard(runner.id),
         )
-        await task_manager.update_message_id(runner.id, sent.message_id)
+        await task_manager.update_message_id(runner.id, sent.id)
         await _update_stage(runner.id, "排队中")
     except Exception as exc:
         await client.send_message(message.chat.id, f"❌ {exc}")
