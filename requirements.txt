@@ -12,4 +12,4 @@ aiofiles
 cryptography
 httpx
 yt-dlp
-SQLAlchemy>=1.4,<2.0
+SQLAlchemy
