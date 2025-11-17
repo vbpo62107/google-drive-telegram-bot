@@ -14,9 +14,6 @@ class KeywordMonitor(BASE):
     enabled = Column(Boolean, nullable=False, default=True)
 
 
-KeywordMonitor.__table__.create(checkfirst=True)
-
-
 def _serialize_keywords(keywords: List[str]) -> str:
     unique = []
     seen = set()

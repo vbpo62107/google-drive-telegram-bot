@@ -12,9 +12,6 @@ class ParentID(BASE):
         self.chat_id = chat_id
         self.parent_id = parent_id
 
-ParentID.__table__.create(checkfirst=True)
-
-
 def search_parent(chat_id):
     with get_session() as session:
         parent_id = session.query(ParentID).with_entities(ParentID.parent_id).filter_by(chat_id=chat_id).scalar()
