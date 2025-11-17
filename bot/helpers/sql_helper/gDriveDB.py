@@ -217,7 +217,7 @@ def _save_record(record: CredentialRecord):
         with get_session() as session:
             saved = session.query(gDriveCreds).get(record.chat_id)
             if not saved:
-                saved = gDriveCreds(record.chat_id)
+                saved = gDriveCreds(chat_id=record.chat_id)
             saved.mode = record.mode
             saved.fingerprint = record.fingerprint
             saved.device = record.device
