@@ -8,7 +8,7 @@ from typing import Any, Optional
 
 from cachetools import TTLCache
 from cryptography.fernet import Fernet, InvalidToken
-from sqlalchemy import Column, DateTime, Integer, LargeBinary, String, func, inspect, text
+from sqlalchemy import BigInteger, Column, DateTime, Integer, LargeBinary, String, func, inspect, text
 
 from bot import (
     DEFAULT_AUTH_MODE,
@@ -49,7 +49,7 @@ class CredentialRecord:
 
 class gDriveCreds(BASE):
     __tablename__ = "gDrive"
-    chat_id = Column(Integer, primary_key=True)
+    chat_id = Column(BigInteger, primary_key=True)
     credential_string = Column(LargeBinary)
     mode = Column(String(32), default="oauth")
     fingerprint = Column(String(256))
