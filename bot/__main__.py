@@ -24,12 +24,15 @@ logging.getLogger("pyrogram").setLevel(logging.WARNING)
 atexit.register(cleanup_drive_instances)
 
 
-def load_module_plugins():
+def load_module_plugins() -> None:
     modules_path = os.path.join(os.path.dirname(__file__), "modules")
     if not os.path.isdir(modules_path):
         return
     for module in pkgutil.iter_modules([modules_path]):
-        importlib.import_module(f"bot.modules.{module.name}")
+        try:
+            importlib.import_module(f"bot.modules.{module.name}")
+        except Exception:
+            LOGGER.exception("无法导入模块 %s", module.name)
 
 
 if __name__ == "__main__":

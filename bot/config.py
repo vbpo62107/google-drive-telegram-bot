@@ -22,7 +22,7 @@ class BotCommands:
   Delete = ['delete', 'del']
   EmptyTrash = ['emptyTrash']
   YtDl = ['ytdl']
-  ListDrive = ['listdrive', 'lsdrive']
+  ListDrive = ['listdrive', 'lsdrive', 'listdriv']
   SearchDrive = ['searchdrive', 'sdrive']
 
 class Messages:
