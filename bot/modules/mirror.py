@@ -41,14 +41,14 @@ def _initial_keyboard(task_id: int) -> InlineKeyboardMarkup:
 @Client.on_message(filters.command("mirror") & filters.private)
 async def mirror_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
-        await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
+        await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
         return
     if not message.text or len(message.text.split(maxsplit=1)) < 2:
-        await client.send_message(message.chat.id, "❌ 请提供直链 URL.")
+        await client.send_message(message.chat.id, "⚠️ 请提供直链 URL.")
         return
     url = message.text.split(maxsplit=1)[1].strip()
     if not re.match(r"^https?://", url, re.I):
-        await client.send_message(message.chat.id, "❌ 仅支持 HTTP(S) 链接.")
+        await client.send_message(message.chat.id, "⚠️ 仅支持 HTTP(S) 链接.")
         return
     if not gDriveDB.is_authorized(message.from_user.id):
         await client.send_message(message.chat.id, Messages.NOT_AUTH)
@@ -64,13 +64,13 @@ async def mirror_handler(client, message):
         await task_manager.update_message_id(runner.id, sent.id)
         await _update_stage(runner.id, "排队中")
     except Exception as exc:
-        await client.send_message(message.chat.id, f"❌ {exc}")
+        await client.send_message(message.chat.id, f"⚠️ {exc}")
 
 
 @Client.on_callback_query(filters.regex(r"^mirror:(\d+):(pause|resume|cancel)$"))
 async def mirror_callback_handler(client, query):
     if query.from_user is None or query.from_user.id not in SUDO_USERS:
-        await query.answer("❌ 无权操作", show_alert=True)
+        await query.answer("⚠️ 无权操作", show_alert=True)
         return
     data = query.data.split(":")
     task_id = int(data[1])
@@ -86,4 +86,5 @@ async def mirror_callback_handler(client, query):
             changed = await task_manager.cancel(client, task_id)
             await query.answer("🛑 已取消" if changed else "⚠️ 无法取消", show_alert=True)
     except Exception as exc:
-        await query.answer(f"❌ {exc}", show_alert=True)
+        await query.answer(f"⚠️ {exc}", show_alert=True)
+

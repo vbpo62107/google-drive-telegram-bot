@@ -56,7 +56,7 @@ async def _update_stage(task_id: int, stage: str) -> None:
 def _format_monitor_line(record: dict) -> str:
     status = "启用" if record["enabled"] else "停用"
     keywords = ", ".join(record["keywords"]) if record["keywords"] else "-"
-    return f"#{record['id']} 频道: {record['channel_id']} 状态: {status} 关键词: {keywords}"
+    return f"#{record['id']} 频道: {record['channel_id']} 状态: {status} 关键字: {keywords}"
 
 
 def _parse_keywords(text: str) -> List[str]:
@@ -115,7 +115,12 @@ def _extract_media(message) -> str:
 
 async def _notify_missing_credentials(client: Client, message, keywords: List[str]) -> None:
     channel_title = message.chat.title or str(message.chat.id)
-    text = f"⚠️ 自动监听触发但缺少有效凭据\n频道: {channel_title} ({message.chat.id})\n关键词: {', '.join(keywords) if keywords else '-'}\n消息ID: {message.id}"
+    text = (
+        "⚠️ 自动监听触发但缺少有效凭据\n"
+        f"频道: {channel_title} ({message.chat.id})\n"
+        f"关键字: {', '.join(keywords) if keywords else '-'}\n"
+        f"消息ID: {message.id}"
+    )
     for admin_id in SUDO_USERS:
         try:
             await client.send_message(admin_id, text)
@@ -123,10 +128,27 @@ async def _notify_missing_credentials(client: Client, message, keywords: List[st
             continue
 
 
-async def _notify_admins(client: Client, owner_id: int, task_id: int, message, keywords: List[str], file_name: str, source: str) -> None:
+async def _notify_admins(
+    client: Client,
+    owner_id: int,
+    task_id: int,
+    message,
+    keywords: List[str],
+    file_name: str,
+    source: str,
+) -> None:
     channel_title = message.chat.title or str(message.chat.id)
     link = message.link or f"tg://{message.chat.id}/{message.id}"
-    text = f"📢 频道触发监控\n频道: {channel_title} ({message.chat.id})\n关键词: {', '.join(keywords) if keywords else '-'}\n任务ID: {task_id}\n文件: `{file_name}`\n来源: {link}\n分配: {owner_id}\n源指纹: {source}"
+    text = (
+        "📢 频道触发监控\n"
+        f"频道: {channel_title} ({message.chat.id})\n"
+        f"关键字: {', '.join(keywords) if keywords else '-'}\n"
+        f"任务ID: {task_id}\n"
+        f"文件: `{file_name}`\n"
+        f"来源: {link}\n"
+        f"分配: {owner_id}\n"
+        f"源指向: {source}"
+    )
     for admin_id in SUDO_USERS:
         if admin_id == owner_id:
             continue
@@ -151,27 +173,27 @@ def _build_source(message) -> Tuple[str, str]:
 @Client.on_message(filters.command("addmonitor") & filters.private)
 async def add_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
-        await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
+        await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
         return
     try:
         if len(message.command) < 3:
-            await client.send_message(message.chat.id, "❌ 用法: /addmonitor <频道ID> <关键词1,关键词2>")
+            await client.send_message(message.chat.id, "⚠️ 用法: /addmonitor <频道ID> <关键字,关键字>")
             return
         channel_id = int(message.command[1])
         keywords = _parse_keywords(" ".join(message.command[2:]))
         if not keywords:
-            await client.send_message(message.chat.id, "❌ 请提供至少一个关键词.")
+            await client.send_message(message.chat.id, "⚠️ 请提供至少一个关键词.")
             return
         record = await asyncio.to_thread(create_monitor, channel_id, keywords)
         await client.send_message(message.chat.id, f"✅ 已添加监控\n{_format_monitor_line(record)}")
     except Exception as exc:
-        await client.send_message(message.chat.id, f"❌ {exc}")
+        await client.send_message(message.chat.id, f"⚠️ {exc}")
 
 
 @Client.on_message(filters.command("listmonitor") & filters.private)
 async def list_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
-        await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
+        await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
         return
     try:
         records = await asyncio.to_thread(list_monitors)
@@ -181,45 +203,45 @@ async def list_monitor_handler(client, message):
         lines = ["📋 当前监控列表:"] + [_format_monitor_line(record) for record in records]
         await client.send_message(message.chat.id, "\n".join(lines))
     except Exception as exc:
-        await client.send_message(message.chat.id, f"❌ {exc}")
+        await client.send_message(message.chat.id, f"⚠️ {exc}")
 
 
 @Client.on_message(filters.command("togglemonitor") & filters.private)
 async def toggle_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
-        await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
+        await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
         return
     try:
         if len(message.command) < 2:
-            await client.send_message(message.chat.id, "❌ 用法: /togglemonitor <监控ID>")
+            await client.send_message(message.chat.id, "⚠️ 用法: /togglemonitor <监控ID>")
             return
         monitor_id = int(message.command[1])
         record = await asyncio.to_thread(toggle_monitor, monitor_id)
         if not record:
-            await client.send_message(message.chat.id, "❌ 未找到对应的监控项.")
+            await client.send_message(message.chat.id, "⚠️ 未找到对应的监控项")
             return
         await client.send_message(message.chat.id, f"✅ 状态已更新\n{_format_monitor_line(record)}")
     except Exception as exc:
-        await client.send_message(message.chat.id, f"❌ {exc}")
+        await client.send_message(message.chat.id, f"⚠️ {exc}")
 
 
 @Client.on_message(filters.command("delmonitor") & filters.private)
 async def delete_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
-        await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
+        await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
         return
     try:
         if len(message.command) < 2:
-            await client.send_message(message.chat.id, "❌ 用法: /delmonitor <监控ID>")
+            await client.send_message(message.chat.id, "⚠️ 用法: /delmonitor <监控ID>")
             return
         monitor_id = int(message.command[1])
         removed = await asyncio.to_thread(delete_monitor, monitor_id)
         if not removed:
-            await client.send_message(message.chat.id, "❌ 未找到对应的监控项.")
+            await client.send_message(message.chat.id, "⚠️ 未找到对应的监控项")
             return
         await client.send_message(message.chat.id, "✅ 已删除监控项.")
     except Exception as exc:
-        await client.send_message(message.chat.id, f"❌ {exc}")
+        await client.send_message(message.chat.id, f"⚠️ {exc}")
 
 
 @Client.on_message(filters.channel)
@@ -244,7 +266,14 @@ async def auto_capture_listener(client, message):
         runner = await task_manager.submit(client, owner_id, owner_id, source, file_name)
         channel_title = message.chat.title or str(message.chat.id)
         link = message.link or f"tg://{message.chat.id}/{message.id}"
-        summary = f"📡 自动任务已创建\nID: {runner.id}\n频道: {channel_title}\n关键词: {', '.join(keywords) if keywords else '-'}\n来源: {link}\n文件: `{file_name}`"
+        summary = (
+            "📡 自动任务已创建\n"
+            f"ID: {runner.id}\n"
+            f"频道: {channel_title}\n"
+            f"关键字: {', '.join(keywords) if keywords else '-'}\n"
+            f"来源: {link}\n"
+            f"文件: `{file_name}`"
+        )
         sent = await client.send_message(owner_id, summary, reply_markup=_initial_keyboard(runner.id))
         await task_manager.update_message_id(runner.id, sent.id)
         await _update_stage(runner.id, "排队中")
@@ -254,6 +283,7 @@ async def auto_capture_listener(client, message):
         owner_id = locals().get("owner_id", 0)
         if owner_id:
             try:
-                await client.send_message(owner_id, f"❌ 自动任务创建失败\n{exc}")
+                await client.send_message(owner_id, f"⚠️ 自动任务创建失败\n{exc}")
             except Exception:
                 pass
+
