@@ -25,14 +25,19 @@ atexit.register(cleanup_drive_instances)
 
 
 def load_module_plugins() -> None:
-    modules_path = os.path.join(os.path.dirname(__file__), "modules")
-    if not os.path.isdir(modules_path):
+    try:
+        import bot.modules as modules_pkg
+    except Exception:
+        LOGGER.exception("无法加载模块包 bot.modules")
         return
-    for module in pkgutil.iter_modules([modules_path]):
+
+    for module_info in pkgutil.walk_packages(modules_pkg.__path__, modules_pkg.__name__ + "."):
+        if module_info.ispkg or module_info.name.split(".")[-1].startswith("_"):
+            continue
         try:
-            importlib.import_module(f"bot.modules.{module.name}")
+            importlib.import_module(module_info.name)
         except Exception:
-            LOGGER.exception("无法导入模块 %s", module.name)
+            LOGGER.exception("无法导入模块 %s", module_info.name)
 
 
 if __name__ == "__main__":
