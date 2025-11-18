@@ -23,7 +23,7 @@ from pyrogram import Client, filters
 from pyrogram.errors import AuthBytesInvalid, FloodWait, RPCError
 from pyrogram.file_id import FileId
 
-from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS
+from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS, LOGGER
 from bot.config import BotCommands, Messages
 from bot.helpers.utils import CustomFilters, humanbytes, get_floodwait_seconds
 from bot.modules.drive_helper import DriveAccessError, drive_error_message
@@ -538,6 +538,7 @@ async def _handle_fetch(client: Client, message, fetcher: Fetcher, *, url: Optio
 
 @Client.on_message(filters.private & filters.command(BotCommands.Download) & CustomFilters.auth_users)
 async def download_handler(client, message):
+    LOGGER.info("download_handler invoked: user=%s text=%r", getattr(message.from_user, "id", None), message.text)
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
         return
@@ -558,6 +559,7 @@ async def download_handler(client, message):
 
 @Client.on_message(filters.private & filters.command(BotCommands.YtDl) & CustomFilters.auth_users)
 async def ytdl_handler(client, message):
+    LOGGER.info("ytdl_handler invoked: user=%s text=%r", getattr(message.from_user, "id", None), message.text)
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
         return
