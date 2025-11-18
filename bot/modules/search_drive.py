@@ -1,4 +1,5 @@
 import asyncio
+
 from pyrogram import Client, filters
 
 from bot import SUDO_USERS
@@ -22,7 +23,7 @@ def _format_size(value):
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.SearchDrive))
 async def search_drive_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
-        await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
+        await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
         return
     user_id = message.from_user.id
     if not gDriveDB.is_authorized(user_id):
@@ -31,7 +32,10 @@ async def search_drive_handler(client, message):
     text = message.text or ""
     parts = text.split(maxsplit=1)
     if len(parts) < 2 or not parts[1].strip():
-        await client.send_message(message.chat.id, Messages.SEARCH_USAGE.format(BotCommands.SearchDrive[0], BotCommands.SearchDrive[0]))
+        await client.send_message(
+            message.chat.id,
+            Messages.SEARCH_USAGE.format(BotCommands.SearchDrive[0], BotCommands.SearchDrive[0]),
+        )
         return
     query_text = parts[1].strip()
     page_token = None
@@ -41,7 +45,10 @@ async def search_drive_handler(client, message):
         token = token.strip()
         page_token = token or None
     if not query_text:
-        await client.send_message(message.chat.id, Messages.SEARCH_USAGE.format(BotCommands.SearchDrive[0], BotCommands.SearchDrive[0]))
+        await client.send_message(
+            message.chat.id,
+            Messages.SEARCH_USAGE.format(BotCommands.SearchDrive[0], BotCommands.SearchDrive[0]),
+        )
         return
     try:
         drive = await get_drive_instance(user_id)
@@ -49,7 +56,7 @@ async def search_drive_handler(client, message):
         await client.send_message(message.chat.id, drive_error_message(exc.code))
         return
     except Exception as exc:
-        await client.send_message(message.chat.id, f"❌ {exc}")
+        await client.send_message(message.chat.id, f"⚠️ {exc}")
         return
     loop = asyncio.get_running_loop()
     try:
@@ -107,3 +114,4 @@ async def search_drive_handler(client, message):
         chunks.append("\n".join(current))
     for chunk in chunks:
         await client.send_message(message.chat.id, chunk)
+
