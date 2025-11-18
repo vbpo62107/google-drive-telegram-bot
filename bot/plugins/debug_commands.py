@@ -6,14 +6,40 @@ from bot.config import BotCommands
 
 
 DOWNLOAD_ALIASES = set(BotCommands.Download)
+YTDL_ALIASES = set(BotCommands.YtDl)
 LIST_ALIASES = set(BotCommands.ListDrive)
 SEARCH_ALIASES = set(BotCommands.SearchDrive)
+SETFOLDER_ALIASES = set(BotCommands.SetFolder)
+MONITOR_ADD = {"addmonitor"}
+MONITOR_LIST = {"listmonitor"}
+MONITOR_TOGGLE = {"togglemonitor"}
+MONITOR_DELETE = {"delmonitor"}
 
 
 @Client.on_message(
     filters.private
     & filters.incoming
-    & filters.command(["download", "dl", "mirror", "listdrive", "searchdrive"])
+    & filters.command(
+        [
+            # download / dl
+            *BotCommands.Download,
+            # mirror
+            "mirror",
+            # listdrive aliases
+            *BotCommands.ListDrive,
+            # searchdrive aliases
+            *BotCommands.SearchDrive,
+            # ytdl aliases
+            *BotCommands.YtDl,
+            # setfolder aliases
+            *BotCommands.SetFolder,
+            # monitor commands
+            "addmonitor",
+            "listmonitor",
+            "togglemonitor",
+            "delmonitor",
+        ]
+    )
     & filters.user(SUDO_USERS),
     group=1,
 )
@@ -33,6 +59,11 @@ async def debug_command_router(client: Client, message: Message) -> None:
 
             await download_handler(client, message)
             return
+        if command in YTDL_ALIASES:
+            from bot.modules.download_manager import ytdl_handler
+
+            await ytdl_handler(client, message)
+            return
         if command == "mirror":
             from bot.modules.mirror import mirror_handler
 
@@ -47,6 +78,31 @@ async def debug_command_router(client: Client, message: Message) -> None:
             from bot.modules.search_drive import search_drive_handler
 
             await search_drive_handler(client, message)
+            return
+        if command in SETFOLDER_ALIASES:
+            from bot.plugins.set_parent import _set_parent
+
+            await _set_parent(client, message)
+            return
+        if command in MONITOR_ADD:
+            from bot.modules.auto_capture import add_monitor_handler
+
+            await add_monitor_handler(client, message)
+            return
+        if command in MONITOR_LIST:
+            from bot.modules.auto_capture import list_monitor_handler
+
+            await list_monitor_handler(client, message)
+            return
+        if command in MONITOR_TOGGLE:
+            from bot.modules.auto_capture import toggle_monitor_handler
+
+            await toggle_monitor_handler(client, message)
+            return
+        if command in MONITOR_DELETE:
+            from bot.modules.auto_capture import delete_monitor_handler
+
+            await delete_monitor_handler(client, message)
             return
     except Exception as exc:
         LOGGER.exception("DEBUG router failed for command %s: %s", command, exc)
