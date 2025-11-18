@@ -56,7 +56,11 @@ try:
     DOWNLOAD_DIRECTORY = optional_env("DOWNLOAD_DIRECTORY", "./downloads/")
     G_DRIVE_CLIENT_ID = require_env("G_DRIVE_CLIENT_ID")
     G_DRIVE_CLIENT_SECRET = require_env("G_DRIVE_CLIENT_SECRET")
-    TOKEN_ENCRYPTION_KEY = require_env("TOKEN_ENCRYPTION_KEY")
+    # TOKEN_ENCRYPTION_KEY is optional; when unset, credentials
+    # will be stored in plaintext JSON form instead of being
+    # encrypted. This keeps local/testing setups simple while
+    # still allowing encryption when a key is provided.
+    TOKEN_ENCRYPTION_KEY = optional_env("TOKEN_ENCRYPTION_KEY", "").strip()
     OAUTH_SCOPE = optional_env("OAUTH_SCOPE", "https://www.googleapis.com/auth/drive")
     OAUTH_USE_PKCE = parse_bool(str(optional_env("OAUTH_USE_PKCE", "true")))
     DEFAULT_AUTH_MODE = optional_env("DEFAULT_AUTH_MODE", "oauth").strip().lower()

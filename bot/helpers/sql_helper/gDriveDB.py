@@ -130,12 +130,25 @@ def _invalidate_drive(chat_id):
         pass
 
 
+def _encryption_enabled() -> bool:
+    """
+    Return True if TOKEN_ENCRYPTION_KEY is configured and non-empty.
+
+    When encryption is disabled, credentials are stored as plain JSON
+    bytes in the database instead of being encrypted with Fernet.
+    """
+    return bool((TOKEN_ENCRYPTION_KEY or "").strip())
+
+
 def _get_cipher() -> Fernet:
     global _FERNET
     if _FERNET is not None:
         return _FERNET
+    key = (TOKEN_ENCRYPTION_KEY or "").strip()
+    if not key:
+        raise RuntimeError("Encryption requested but TOKEN_ENCRYPTION_KEY is not set")
     try:
-        _FERNET = Fernet(TOKEN_ENCRYPTION_KEY.encode())
+        _FERNET = Fernet(key.encode())
     except Exception as exc:
         LOGGER.error("Invalid TOKEN_ENCRYPTION_KEY: %s", exc)
         raise
@@ -143,7 +156,16 @@ def _get_cipher() -> Fernet:
 
 
 def _encrypt_payload(payload: dict[str, Any]) -> bytes:
-    return _get_cipher().encrypt(json.dumps(payload).encode("utf-8"))
+    """
+    Serialize the credential payload.
+
+    - When encryption is enabled, payload is encrypted with Fernet.
+    - When encryption is disabled, payload is stored as plain JSON.
+    """
+    data = json.dumps(payload).encode("utf-8")
+    if not _encryption_enabled():
+        return data
+    return _get_cipher().encrypt(data)
 
 
 def _convert_legacy(blob: bytes) -> Optional[dict[str, Any]]:
@@ -180,8 +202,27 @@ def _convert_legacy(blob: bytes) -> Optional[dict[str, Any]]:
 
 
 def _deserialize(blob: Optional[bytes]) -> tuple[dict[str, Any], bool]:
+    """
+    Deserialize credential payload from the database.
+
+    Returns (payload, converted), where converted indicates that the
+    data came from an older legacy format and was upgraded in-memory.
+    """
     if not blob:
         return {}, False
+
+    # When encryption is disabled, credentials are stored as plain JSON
+    # (or legacy pickle) in the database.
+    if not _encryption_enabled():
+        try:
+            return json.loads(blob.decode("utf-8")), False
+        except Exception:
+            converted = _convert_legacy(blob)
+            if converted:
+                return converted, True
+            LOGGER.warning("Failed to load credential blob without encryption")
+            return {}, False
+
     try:
         decrypted = _get_cipher().decrypt(blob)
         return json.loads(decrypted.decode("utf-8")), False
