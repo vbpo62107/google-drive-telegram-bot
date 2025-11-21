@@ -20,7 +20,7 @@ class BotCommands:
   Revoke = ['revoke']
   Clone = ['copy', 'clone']
   Delete = ['delete', 'del']
-  EmptyTrash = ['emptyTrash']
+  EmptyTrash = ['emptytrash', 'emptyTrash']
   YtDl = ['ytdl']
   ListDrive = ['listdrive', 'lsdrive', 'listdriv']
   SearchDrive = ['searchdrive', 'sdrive']

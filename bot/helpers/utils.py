@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from pyrogram import filters
 from pyrogram.errors import FloodWait
 
-from bot import DEFAULT_AUTH_MODE, SUDO_USERS
+from bot import DEFAULT_AUTH_MODE, LOGGER, SUDO_USERS
 from bot.helpers.gdrive_utils.credentials_manager import credential_manager
 from bot.helpers.sql_helper import gDriveDB
 
@@ -16,12 +16,14 @@ def _is_authorized_user(_, __, message) -> bool:
     user_id = getattr(user, "id", None)
     if user_id is None:
         return False
-    # SUDO 用户始终允许通过高权限过滤器，具体权限和
-    # 授权状态在各自命令内再做细粒度检查。
+    # SUDO 用户始终允许通过高权限过滤器，具体权限和授权状态在各自命令内再做细粒度检查。
     if user_id in SUDO_USERS:
         return True
-    if gDriveDB.is_authorized(user_id):
-        return True
+    try:
+        if gDriveDB.is_authorized(user_id):
+            return True
+    except Exception as exc:
+        LOGGER.error("Authorization lookup failed for user %s: %s", user_id, exc)
     if DEFAULT_AUTH_MODE == "service_account" and credential_manager.service_account_available():
         return True
     return False
