@@ -35,3 +35,14 @@ async def _command_logger(client, message):
         command,
         message.text,
     )
+
+
+@Client.on_message(filters.incoming, group=1)
+async def _message_logger(client, message):
+    LOGGER.info(
+        "MSG hit: user=%s chat=%s is_private=%s text=%r",
+        getattr(message.from_user, "id", None),
+        getattr(message.chat, "id", None),
+        getattr(message.chat, "type", None) == "private",
+        message.text,
+    )

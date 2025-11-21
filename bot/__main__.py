@@ -69,17 +69,22 @@ if __name__ == "__main__":
     if not os.path.isdir(DOWNLOAD_DIRECTORY):
         os.makedirs(DOWNLOAD_DIRECTORY)
 
+    plugin_root = Path(__file__).resolve().parent / "plugins"
+    LOGGER.info("Plugin root: %s", plugin_root)
+
     # Import core modules so that all command handlers inside
     # bot.modules are registered, regardless of plugin settings.
     _import_modules()
     # Import plugin modules explicitly to avoid silent plugin loader failures.
     _import_plugins()
 
+    plugins = {"root": str(plugin_root)}
     app = Client(
         "G-DriveBot",
         bot_token=BOT_TOKEN,
         api_id=APP_ID,
         api_hash=API_HASH,
+        plugins=plugins,
         workdir=DOWNLOAD_DIRECTORY,
     )
     LOGGER.info("Starting Bot !")
