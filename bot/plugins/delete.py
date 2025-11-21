@@ -2,7 +2,7 @@ import asyncio
 
 from pyrogram import Client, filters
 
-from bot import LOGGER
+from bot import LOGGER, SUDO_USERS
 from bot.config import BotCommands, Messages
 from bot.helpers.utils import CustomFilters
 from bot.modules.drive_helper import (
@@ -14,7 +14,11 @@ from bot.modules.drive_helper import (
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Delete) & CustomFilters.auth_users)
 async def _delete(client, message):
-    user_id = message.from_user.id
+    user = message.from_user
+    if user is None or user.id not in SUDO_USERS:
+        await message.reply_text("⚠️ 您没有权限使用此命令.", quote=True)
+        return
+    user_id = user.id
     if not (len(message.command) > 1 or message.reply_to_message):
         await message.reply_text(Messages.PROVIDE_GDRIVE_URL.format(BotCommands.Delete[0]), quote=True)
         return
@@ -41,7 +45,11 @@ async def _delete(client, message):
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.EmptyTrash) & CustomFilters.auth_users)
 async def _emptyTrash(client, message):
-    user_id = message.from_user.id
+    user = message.from_user
+    if user is None or user.id not in SUDO_USERS:
+        await message.reply_text("⚠️ 您没有权限使用此命令.", quote=True)
+        return
+    user_id = user.id
     LOGGER.info("EmptyTrash: %s", user_id)
     try:
         drive = await get_drive_instance(user_id)
