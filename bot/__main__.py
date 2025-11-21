@@ -45,6 +45,26 @@ def _import_modules() -> None:
             raise
 
 
+def _import_plugins() -> None:
+    """
+    Import all bot.plugins.* modules so their handlers are registered
+    even if Pyrogram's plugin loader fails to locate the root path.
+    """
+    base_path = Path(__file__).resolve().parent / "plugins"
+    if not base_path.is_dir():
+        LOGGER.warning("Plugin directory not found: %s", base_path)
+        return
+    for path in base_path.glob("*.py"):
+        if path.stem.startswith("_") or path.stem == "modules_loader":
+            continue
+        import_path = f"bot.plugins.{path.stem}"
+        try:
+            import_module(import_path)
+        except Exception:  # pragma: no cover - fail fast on import errors
+            LOGGER.exception("Failed to import plugin %s", import_path)
+            raise
+
+
 if __name__ == "__main__":
     if not os.path.isdir(DOWNLOAD_DIRECTORY):
         os.makedirs(DOWNLOAD_DIRECTORY)
@@ -52,15 +72,14 @@ if __name__ == "__main__":
     # Import core modules so that all command handlers inside
     # bot.modules are registered, regardless of plugin settings.
     _import_modules()
+    # Import plugin modules explicitly to avoid silent plugin loader failures.
+    _import_plugins()
 
-    plugin_root = str(Path(__file__).resolve().parent / "plugins")
-    plugins = {"root": plugin_root}
     app = Client(
         "G-DriveBot",
         bot_token=BOT_TOKEN,
         api_id=APP_ID,
         api_hash=API_HASH,
-        plugins=plugins,
         workdir=DOWNLOAD_DIRECTORY,
     )
     LOGGER.info("Starting Bot !")
