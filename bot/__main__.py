@@ -85,6 +85,12 @@ if __name__ == "__main__":
         api_hash=API_HASH,
         workdir=DOWNLOAD_DIRECTORY,
     )
+    # 禁用 Pyrogram 自带的插件加载器（会尝试从无效根路径加载），改用上面的显式导�?
+    app.plugins = None
+    try:
+        app.load_plugins = lambda *args, **kwargs: None  # type: ignore[assignment]
+    except Exception:
+        pass
     LOGGER.info("Starting Bot !")
     app.run()
     LOGGER.info("Bot Stopped !")
