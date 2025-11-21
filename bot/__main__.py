@@ -69,7 +69,8 @@ if __name__ == "__main__":
     if not os.path.isdir(DOWNLOAD_DIRECTORY):
         os.makedirs(DOWNLOAD_DIRECTORY)
 
-    plugin_root = Path(__file__).resolve().parent / "plugins"
+    # 使用包路径作为插件根，避免传入文件系统路径导致导入错误
+    plugin_root = "bot.plugins"
     LOGGER.info("Plugin root: %s", plugin_root)
 
     # Import core modules so that all command handlers inside
@@ -78,19 +79,15 @@ if __name__ == "__main__":
     # Import plugin modules explicitly to avoid silent plugin loader failures.
     _import_plugins()
 
+    plugins = {"root": plugin_root}
     app = Client(
         "G-DriveBot",
         bot_token=BOT_TOKEN,
         api_id=APP_ID,
         api_hash=API_HASH,
         workdir=DOWNLOAD_DIRECTORY,
+        plugins=plugins,
     )
-    # 禁用 Pyrogram 自带的插件加载器（会尝试从无效根路径加载），改用上面的显式导�?
-    app.plugins = None
-    try:
-        app.load_plugins = lambda *args, **kwargs: None  # type: ignore[assignment]
-    except Exception:
-        pass
     LOGGER.info("Starting Bot !")
     app.run()
     LOGGER.info("Bot Stopped !")
