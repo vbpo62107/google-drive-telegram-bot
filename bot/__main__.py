@@ -78,13 +78,11 @@ if __name__ == "__main__":
     # Import plugin modules explicitly to avoid silent plugin loader failures.
     _import_plugins()
 
-    plugins = {"root": str(plugin_root)}
     app = Client(
         "G-DriveBot",
         bot_token=BOT_TOKEN,
         api_id=APP_ID,
         api_hash=API_HASH,
-        plugins=plugins,
         workdir=DOWNLOAD_DIRECTORY,
     )
     LOGGER.info("Starting Bot !")
