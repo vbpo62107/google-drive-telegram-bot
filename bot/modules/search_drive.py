@@ -2,7 +2,7 @@ import asyncio
 
 from pyrogram import Client, filters
 
-from bot import SUDO_USERS
+from bot import LOGGER, SUDO_USERS
 from bot.config import BotCommands, Messages
 from bot.helpers.sql_helper import gDriveDB
 from bot.helpers.utils import format_bytes
@@ -26,8 +26,13 @@ async def search_drive_handler(client, message):
         await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
         return
     user_id = message.from_user.id
-    if not gDriveDB.is_authorized(user_id):
-        await client.send_message(message.chat.id, Messages.NOT_AUTH)
+    try:
+        if not gDriveDB.is_authorized(user_id):
+            await client.send_message(message.chat.id, Messages.NOT_AUTH)
+            return
+    except Exception as exc:
+        LOGGER.error("SearchDrive auth check failed for user %s: %s", user_id, exc)
+        await client.send_message(message.chat.id, Messages.DB_ERROR)
         return
     text = message.text or ""
     parts = text.split(maxsplit=1)
@@ -114,4 +119,3 @@ async def search_drive_handler(client, message):
         chunks.append("\n".join(current))
     for chunk in chunks:
         await client.send_message(message.chat.id, chunk)
-

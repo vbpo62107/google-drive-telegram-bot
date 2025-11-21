@@ -1,7 +1,7 @@
 import asyncio
 from pyrogram import Client, filters
 
-from bot import SUDO_USERS
+from bot import LOGGER, SUDO_USERS
 from bot.config import BotCommands, Messages
 from bot.helpers.sql_helper import gDriveDB, idsDB
 from bot.helpers.utils import format_bytes
@@ -131,8 +131,13 @@ async def list_drive_handler(client, message):
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
         return
     user_id = message.from_user.id
-    if not gDriveDB.is_authorized(user_id):
-        await client.send_message(message.chat.id, Messages.NOT_AUTH)
+    try:
+        if not gDriveDB.is_authorized(user_id):
+            await client.send_message(message.chat.id, Messages.NOT_AUTH)
+            return
+    except Exception as exc:
+        LOGGER.error("ListDrive auth check failed for user %s: %s", user_id, exc)
+        await client.send_message(message.chat.id, Messages.DB_ERROR, quote=True)
         return
     parts = (message.text or "").split(maxsplit=1)
     target = parts[1] if len(parts) > 1 else ""

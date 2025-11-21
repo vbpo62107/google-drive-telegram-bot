@@ -4,7 +4,7 @@ import re
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot import SUDO_USERS
+from bot import LOGGER, SUDO_USERS
 from bot.config import Messages
 from bot.helpers.sql_helper import gDriveDB
 from bot.helpers.sql_helper.mirror_tasks import MirrorTask, MirrorTaskStatus
@@ -50,7 +50,13 @@ async def mirror_handler(client, message):
     if not re.match(r"^https?://", url, re.I):
         await client.send_message(message.chat.id, "⚠️ 仅支持 HTTP(S) 链接.")
         return
-    if not gDriveDB.is_authorized(message.from_user.id):
+    try:
+        authorized = gDriveDB.is_authorized(message.from_user.id)
+    except Exception as exc:
+        LOGGER.error("Mirror auth check failed for user %s: %s", message.from_user.id, exc)
+        await client.send_message(message.chat.id, Messages.DB_ERROR)
+        return
+    if not authorized:
         await client.send_message(message.chat.id, Messages.NOT_AUTH)
         return
     filename = extract_filename_from_url(url, "downloaded_file")
@@ -87,4 +93,3 @@ async def mirror_callback_handler(client, query):
             await query.answer("🛑 已取消" if changed else "⚠️ 无法取消", show_alert=True)
     except Exception as exc:
         await query.answer(f"⚠️ {exc}", show_alert=True)
-
