@@ -27,3 +27,11 @@ AUTH_REQUIRED_COMMANDS = list(
 )
 async def _auth_required_feedback(client: Client, message):
     await message.reply_text(Messages.NOT_AUTH, quote=True)
+
+
+@Client.on_message(
+    filters.group
+    & filters.command(AUTH_REQUIRED_COMMANDS)
+)
+async def _group_redirect(client: Client, message):
+    await message.reply_text("⚠️ 请在与机器人私聊中使用此命令。", quote=True)
