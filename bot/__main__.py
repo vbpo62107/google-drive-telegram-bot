@@ -2,6 +2,7 @@ import atexit
 import logging
 import os
 from importlib import import_module
+from pathlib import Path
 from typing import List
 
 from pyrogram import Client
@@ -52,7 +53,8 @@ if __name__ == "__main__":
     # bot.modules are registered, regardless of plugin settings.
     _import_modules()
 
-    plugins = {"root": "bot/plugins"}
+    plugin_root = str(Path(__file__).resolve().parent / "plugins")
+    plugins = {"root": plugin_root}
     app = Client(
         "G-DriveBot",
         bot_token=BOT_TOKEN,

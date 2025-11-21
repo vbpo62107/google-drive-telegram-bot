@@ -66,6 +66,8 @@ class Messages:
     
     NOT_AUTH = f"🔑 **您尚未认证我可以上传到任何帐户.**\n__Send /{BotCommands.Authorize[0]} to authenticate.__"
     
+    GROUP_USE_PRIVATE = "⚠️ 请在与机器人私聊中使用此命令."
+
     DOWNLOADED_SUCCESSFULLY = "📤 **上传文件中...**\n**Filename:** ```{}```\n**Size:** ```{}```"
     
     UPLOADED_SUCCESSFULLY = "✅ **上传成功.**\n[{}]({}) __({})__"

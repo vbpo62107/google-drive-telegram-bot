@@ -34,4 +34,4 @@ async def _auth_required_feedback(client: Client, message):
     & filters.command(AUTH_REQUIRED_COMMANDS)
 )
 async def _group_redirect(client: Client, message):
-    await message.reply_text("⚠️ 请在与机器人私聊中使用此命令。", quote=True)
+    await message.reply_text(Messages.GROUP_USE_PRIVATE, quote=True)
