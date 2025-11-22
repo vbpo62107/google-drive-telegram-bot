@@ -4,8 +4,8 @@ from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
-    handlers=[logging.FileHandler('log.txt'), logging.StreamHandler()],
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    handlers=[logging.FileHandler("log.txt", encoding="utf-8"), logging.StreamHandler()],
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 LOGGER = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
