@@ -23,15 +23,23 @@ COMMAND_ALIASES = list(
 )
 
 
+def _normalize_command(message):
+    if hasattr(message, "command") and message.command:
+        return (message.command[0] or "").lstrip("/").lower()
+    text = (message.text or "").strip()
+    if text.startswith("/"):
+        return text.split()[0].split("@")[0].lstrip("/").lower()
+    return None
+
+
 @Client.on_message(filters.incoming & filters.command(COMMAND_ALIASES), group=0)
 async def _command_logger(client, message):
-    command = None
-    if hasattr(message, "command") and message.command:
-        command = (message.command[0] or "").lstrip("/").lower()
+    command = _normalize_command(message)
     LOGGER.info(
-        "CMD hit: user=%s chat=%s command=%s text=%r",
+        "命令命中 user=%s chat=%s 类型=%s 命令=%s 文本=%r",
         getattr(message.from_user, "id", None),
         getattr(message.chat, "id", None),
+        getattr(message.chat, "type", None),
         command,
         message.text,
     )
@@ -40,9 +48,9 @@ async def _command_logger(client, message):
 @Client.on_message(filters.incoming, group=1)
 async def _message_logger(client, message):
     LOGGER.info(
-        "MSG hit: user=%s chat=%s is_private=%s text=%r",
+        "消息记录 user=%s chat=%s 类型=%s 文本=%r",
         getattr(message.from_user, "id", None),
         getattr(message.chat, "id", None),
-        getattr(message.chat, "type", None) == "private",
+        getattr(message.chat, "type", None),
         message.text,
     )

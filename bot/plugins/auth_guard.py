@@ -56,3 +56,14 @@ async def _auth_required_feedback(client: Client, message):
 )
 async def _group_redirect(client: Client, message):
     await message.reply_text(Messages.GROUP_USE_PRIVATE, quote=True)
+
+
+@Client.on_message(filters.group & filters.regex(r"^/"), group=20)
+async def _group_any_command(client: Client, message):
+    """
+    兜底：群里任何斜杠命令都提示去私聊，避免过滤器未匹配时出现“无响应”。
+    """
+    try:
+        await message.reply_text(Messages.GROUP_USE_PRIVATE, quote=True)
+    except Exception:
+        pass
