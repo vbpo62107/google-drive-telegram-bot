@@ -2,6 +2,7 @@ import logging
 from itertools import chain
 
 from pyrogram import Client, filters
+from pyrogram.enums import ParseMode
 
 from bot import LOGGER, SUDO_USERS
 from bot.config import BotCommands, Messages
@@ -61,4 +62,17 @@ async def _fallback_commands(client, message):
             return
 
     # 未命中的兜底提示
-    await message.reply_text("⚠️ 命令已收到，但处理器未响应，请稍后重试或检查配置。", quote=True)
+    try:
+        await message.reply_text(
+            "⚠️ 命令已收到，但处理器未响应，请稍后重试或检查配置。",
+            quote=True,
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True,
+        )
+    except Exception:
+        logging.exception("兜底命令发送失败: user=%s command=%s", user_id, command)
+        await message.reply_text(
+            "⚠️ 命令已收到，但处理器未响应，请稍后重试或检查配置。",
+            quote=True,
+            parse_mode=None,
+        )
