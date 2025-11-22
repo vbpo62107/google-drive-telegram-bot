@@ -130,8 +130,14 @@ async def _token(client, message):
         await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True)
         return
     if entry.state and state and state != entry.state:
-        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True)
-    sent_message = await message.reply_text("Checking received code...", quote=True, parse_mode=None, disable_web_page_preview=True)
+        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True, parse_mode=None, disable_web_page_preview=True)
+        return
+    sent_message = await message.reply_text(
+        "Checking received code...",
+        quote=True,
+        parse_mode=None,
+        disable_web_page_preview=True,
+    )
     try:
         entry.flow.fetch_token(code=code)
         credentials = entry.flow.credentials
