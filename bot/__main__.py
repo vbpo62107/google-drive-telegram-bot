@@ -92,6 +92,7 @@ if __name__ == "__main__":
         api_hash=API_HASH,
         workdir=DOWNLOAD_DIRECTORY,
         plugins=plugins,
+        parse_mode=None,  # 关闭全局 Markdown 解析，避免中文文本格式导致发送失败
     )
     LOGGER.info("启动机器人...")
     app.run()
