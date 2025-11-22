@@ -1,0 +1,64 @@
+import logging
+from itertools import chain
+
+from pyrogram import Client, filters
+
+from bot import LOGGER, SUDO_USERS
+from bot.config import BotCommands, Messages
+from bot.helpers.sql_helper import gDriveDB
+
+# 需要授权的命令列表
+AUTH_REQUIRED = set(
+    chain(
+        BotCommands.Clone,
+        BotCommands.Delete,
+        BotCommands.EmptyTrash,
+        BotCommands.SetFolder,
+        BotCommands.Download,
+        BotCommands.YtDl,
+        BotCommands.Revoke,
+        BotCommands.ListDrive,
+        BotCommands.SearchDrive,
+        BotCommands.Authorize,
+        BotCommands.AuthMode,
+        ["mirror", "addmonitor", "listmonitor", "togglemonitor", "delmonitor"],
+    )
+)
+
+SUDO_REQUIRED = set(
+    chain(
+        AUTH_REQUIRED,
+        ["log", "restart"],
+    )
+)
+
+ALL_KNOWN_COMMANDS = set(chain(AUTH_REQUIRED, {"start", "help"}))
+
+
+@Client.on_message(filters.private & filters.incoming & filters.regex(r"^/"), group=99)
+async def _fallback_commands(client, message):
+    """
+    兜底：在命令未被其他处理器响应时提供明确提示，避免“无解析无回复”。
+    """
+    raw = (message.text or "").split()[0]
+    command = raw.split("@", 1)[0].lstrip("/").lower()
+    if not command or command not in ALL_KNOWN_COMMANDS:
+        return
+    user_id = getattr(message.from_user, "id", 0) or 0
+
+    # 权限判定
+    if command in SUDO_REQUIRED and user_id not in SUDO_USERS:
+        await message.reply_text("⚠️ 您没有权限使用此命令。", quote=True)
+        return
+    if command in AUTH_REQUIRED:
+        try:
+            if not gDriveDB.is_authorized(user_id):
+                await message.reply_text(Messages.NOT_AUTH, quote=True)
+                return
+        except Exception as exc:
+            LOGGER.error("Fallback 授权检查失败: user=%s err=%s", user_id, exc)
+            await message.reply_text(Messages.DB_ERROR, quote=True)
+            return
+
+    # 未命中的兜底提示
+    await message.reply_text("⚠️ 命令已收到，但处理器未响应，请稍后重试或检查配置。", quote=True)
