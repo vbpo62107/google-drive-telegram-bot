@@ -14,7 +14,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("log.txt", encoding="utf-8"),
+        logging.FileHandler("log.txt", encoding="utf-8-sig"),
         logging.StreamHandler(),
     ],
 )
@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     # 使用包路径作为插件根，避免传入文件系统路径导致导入错误
     plugin_root = "bot.plugins"
-    LOGGER.info("Plugin root: %s", plugin_root)
+    LOGGER.info("插件目录: %s", plugin_root)
 
     # Import core modules so that all command handlers inside
     # bot.modules are registered, regardless of plugin settings.
@@ -92,6 +92,6 @@ if __name__ == "__main__":
         workdir=DOWNLOAD_DIRECTORY,
         plugins=plugins,
     )
-    LOGGER.info("Starting Bot !")
+    LOGGER.info("启动机器人...")
     app.run()
-    LOGGER.info("Bot Stopped !")
+    LOGGER.info("机器人已停止。")

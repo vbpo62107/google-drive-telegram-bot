@@ -4,7 +4,7 @@ from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
-    handlers=[logging.FileHandler("log.txt", encoding="utf-8"), logging.StreamHandler()],
+    handlers=[logging.FileHandler("log.txt", encoding="utf-8-sig"), logging.StreamHandler()],
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 LOGGER = logging.getLogger(__name__)
