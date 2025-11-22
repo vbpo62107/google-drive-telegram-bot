@@ -1,4 +1,4 @@
-from bot import SUPPORT_CHAT_LINK
+from bot import LOGGER, SUPPORT_CHAT_LINK
 from bot.config import Messages as tr
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -28,21 +28,49 @@ def _build_help_keyboard(pos: int) -> list[list[InlineKeyboardButton]]:
 
 @Client.on_message(filters.private & filters.incoming & filters.command(["start"]), group=2)
 async def _start(client, message):
-    await client.send_message(
-        chat_id=message.chat.id,
-        text=tr.START_MSG.format(message.from_user.mention),
-        reply_to_message_id=message.id,
-    )
+    text = tr.START_MSG.format(message.from_user.mention)
+    try:
+        await client.send_message(
+            chat_id=message.chat.id,
+            text=text,
+            reply_markup=None,
+            reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        )
+    except Exception:
+        LOGGER.exception("发送 /start 响应失败")
+        await client.send_message(
+            chat_id=message.chat.id,
+            text=text,
+            reply_markup=None,
+            reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+            parse_mode=None,
+        )
 
 
 @Client.on_message(filters.private & filters.incoming & filters.command(["help"]), group=2)
 async def _help(client, message):
-    await client.send_message(
-        chat_id=message.chat.id,
-        text=tr.HELP_MSG[1],
-        reply_markup=InlineKeyboardMarkup(_build_help_keyboard(1)),
-        reply_to_message_id=message.id,
-    )
+    text = tr.HELP_MSG[1]
+    markup = InlineKeyboardMarkup(_build_help_keyboard(1))
+    try:
+        await client.send_message(
+            chat_id=message.chat.id,
+            text=text,
+            reply_markup=markup,
+            reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        )
+    except Exception:
+        LOGGER.exception("发送 /help 响应失败")
+        await client.send_message(
+            chat_id=message.chat.id,
+            text=text,
+            reply_markup=None,
+            reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+            parse_mode=None,
+        )
 
 
 help_callback_filter = filters.create(lambda _, __, query: (query.data or "").startswith("help+"))
@@ -53,9 +81,21 @@ async def help_answer(client, callback_query):
     chat_id = callback_query.from_user.id
     message_id = callback_query.message.id
     msg = int(callback_query.data.split("+")[1])
-    await client.edit_message_text(
-        chat_id=chat_id,
-        message_id=message_id,
-        text=tr.HELP_MSG[msg],
-        reply_markup=InlineKeyboardMarkup(_build_help_keyboard(msg)),
-    )
+    text = tr.HELP_MSG[msg]
+    markup = InlineKeyboardMarkup(_build_help_keyboard(msg))
+    try:
+        await client.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            reply_markup=markup,
+            disable_web_page_preview=True,
+        )
+    except Exception:
+        LOGGER.exception("编辑帮助消息失败")
+        await client.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=markup,
+            disable_web_page_preview=True,
+        )
