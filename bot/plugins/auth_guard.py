@@ -18,6 +18,27 @@ AUTH_REQUIRED_COMMANDS = list(
     )
 )
 
+PRIVATE_ONLY_COMMANDS = list(
+    chain(
+        AUTH_REQUIRED_COMMANDS,
+        BotCommands.ListDrive,
+        BotCommands.SearchDrive,
+        BotCommands.Authorize,
+        BotCommands.AuthMode,
+        [
+            "mirror",
+            "addmonitor",
+            "listmonitor",
+            "togglemonitor",
+            "delmonitor",
+            "log",
+            "restart",
+            "start",
+            "help",
+        ],
+    )
+)
+
 
 @Client.on_message(
     filters.private
@@ -31,7 +52,7 @@ async def _auth_required_feedback(client: Client, message):
 
 @Client.on_message(
     filters.group
-    & filters.command(AUTH_REQUIRED_COMMANDS)
+    & filters.command(PRIVATE_ONLY_COMMANDS)
 )
 async def _group_redirect(client: Client, message):
     await message.reply_text(Messages.GROUP_USE_PRIVATE, quote=True)
