@@ -1,57 +1,61 @@
 from bot import SUPPORT_CHAT_LINK
-from pyrogram import Client, filters
 from bot.config import Messages as tr
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-@Client.on_message(filters.private & filters.incoming & filters.command(['start']), group=2)
-def _start(client, message):
-    client.send_message(chat_id = message.chat.id,
-        text = tr.START_MSG.format(message.from_user.mention),
-        reply_to_message_id = message.id
+def _build_help_keyboard(pos: int) -> list[list[InlineKeyboardButton]]:
+    if pos == 1:
+        return [[InlineKeyboardButton(text="-->", callback_data="help+2")]]
+    if pos == len(tr.HELP_MSG) - 1:
+        return [
+            [
+                InlineKeyboardButton(text="Support Chat", url=SUPPORT_CHAT_LINK),
+                InlineKeyboardButton(
+                    text="Feature Request",
+                    url="https://github.com/viperadnan-git/google-drive-telegram-bot/issues/new",
+                ),
+            ],
+            [InlineKeyboardButton(text="<--", callback_data=f"help+{pos-1}")],
+        ]
+    return [
+        [
+            InlineKeyboardButton(text="<--", callback_data=f"help+{pos-1}"),
+            InlineKeyboardButton(text="-->", callback_data=f"help+{pos+1}"),
+        ],
+    ]
+
+
+@Client.on_message(filters.private & filters.incoming & filters.command(["start"]), group=2)
+async def _start(client, message):
+    await client.send_message(
+        chat_id=message.chat.id,
+        text=tr.START_MSG.format(message.from_user.mention),
+        reply_to_message_id=message.id,
     )
 
 
-@Client.on_message(filters.private & filters.incoming & filters.command(['help']), group=2)
-def _help(client, message):
-    client.send_message(chat_id = message.chat.id,
-        text = tr.HELP_MSG[1],
-        reply_markup = InlineKeyboardMarkup(map(1)),
-        reply_to_message_id = message.id
+@Client.on_message(filters.private & filters.incoming & filters.command(["help"]), group=2)
+async def _help(client, message):
+    await client.send_message(
+        chat_id=message.chat.id,
+        text=tr.HELP_MSG[1],
+        reply_markup=InlineKeyboardMarkup(_build_help_keyboard(1)),
+        reply_to_message_id=message.id,
     )
 
-help_callback_filter = filters.create(lambda _, __, query: query.data.startswith('help+'))
+
+help_callback_filter = filters.create(lambda _, __, query: (query.data or "").startswith("help+"))
+
 
 @Client.on_callback_query(help_callback_filter)
-def help_answer(c, callback_query):
+async def help_answer(client, callback_query):
     chat_id = callback_query.from_user.id
     message_id = callback_query.message.id
-    msg = int(callback_query.data.split('+')[1])
-    c.edit_message_text(chat_id = chat_id,    message_id = message_id,
-        text = tr.HELP_MSG[msg],    reply_markup = InlineKeyboardMarkup(map(msg))
+    msg = int(callback_query.data.split("+")[1])
+    await client.edit_message_text(
+        chat_id=chat_id,
+        message_id=message_id,
+        text=tr.HELP_MSG[msg],
+        reply_markup=InlineKeyboardMarkup(_build_help_keyboard(msg)),
     )
-
-
-def map(pos):
-    if(pos==1):
-        button = [
-            [InlineKeyboardButton(text = '-->', callback_data = "help+2")]
-        ]
-    elif(pos==len(tr.HELP_MSG)-1):
-
-        button = [
-            [
-             InlineKeyboardButton(text = 'Support Chat', url = SUPPORT_CHAT_LINK),
-             InlineKeyboardButton(text = 'Feature Request', url = "https://github.com/viperadnan-git/google-drive-telegram-bot/issues/new")
-            ],
-            [InlineKeyboardButton(text = '<--', callback_data = f"help+{pos-1}")]
-
-        ]
-    else:
-        button = [
-            [
-                InlineKeyboardButton(text = '<--', callback_data = f"help+{pos-1}"),
-                InlineKeyboardButton(text = '-->', callback_data = f"help+{pos+1}")
-            ],
-        ]
-    return button
