@@ -1,4 +1,4 @@
-﻿import urllib.parse as urlparse
+import urllib.parse as urlparse
 from dataclasses import dataclass
 from typing import Dict, Optional
 
@@ -94,16 +94,16 @@ async def _auth(client, message):
                 quote=True,
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Authorization URL", url=auth_url)]]),
                 disable_web_page_preview=True,
-                parse_mode=None,
+                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
             )
         except Exception as exc:
-            LOGGER.exception("鍙戦€佹巿鏉冮摼鎺ュけ璐? %s", exc)
-            await message.reply_text(auth_url, quote=True, disable_web_page_preview=True, parse_mode=None)
+            LOGGER.exception("发送授权链接失�? %s", exc)
+            await message.reply_text(auth_url, quote=True, disable_web_page_preview=True, parse_mode=pyrogram.enums.ParseMode.MARKDOWN)
     except Exception as exc:
         try:
             await message.reply_text(f"**ERROR:** ```{exc}```", quote=True)
         except Exception:
-            await message.reply_text(str(exc), quote=True, parse_mode=None)
+            await message.reply_text(str(exc), quote=True, parse_mode=pyrogram.enums.ParseMode.MARKDOWN)
 
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Revoke) & CustomFilters.auth_users)
@@ -130,12 +130,12 @@ async def _token(client, message):
         await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True)
         return
     if entry.state and state and state != entry.state:
-        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True, parse_mode=None, disable_web_page_preview=True)
+        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True, parse_mode=pyrogram.enums.ParseMode.MARKDOWN, disable_web_page_preview=True)
         return
     sent_message = await message.reply_text(
         "Checking received code...",
         quote=True,
-        parse_mode=None,
+        parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
         disable_web_page_preview=True,
     )
     try:
@@ -157,3 +157,4 @@ async def _token(client, message):
         await sent_message.edit(Messages.INVALID_AUTH_CODE)
     finally:
         pending_flows.pop(user_id, None)
+

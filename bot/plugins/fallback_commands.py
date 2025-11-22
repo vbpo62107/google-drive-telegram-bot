@@ -49,16 +49,31 @@ async def _fallback_commands(client, message):
 
     # 权限判定
     if command in SUDO_REQUIRED and user_id not in SUDO_USERS:
-        await message.reply_text("⚠️ 您没有权限使用此命令。", quote=True, parse_mode=None, disable_web_page_preview=True)
+        await message.reply_text(
+            "⚠️ 您没有权限使用此命令。",
+            quote=True,
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True,
+        )
         return
     if command in AUTH_REQUIRED:
         try:
             if not gDriveDB.is_authorized(user_id):
-                await message.reply_text(Messages.NOT_AUTH, quote=True, parse_mode=None, disable_web_page_preview=True)
+                await message.reply_text(
+                    Messages.NOT_AUTH,
+                    quote=True,
+                    parse_mode=ParseMode.MARKDOWN,
+                    disable_web_page_preview=True,
+                )
                 return
         except Exception as exc:
             LOGGER.error("Fallback 授权检查失败: user=%s err=%s", user_id, exc)
-            await message.reply_text(Messages.DB_ERROR, quote=True, parse_mode=None, disable_web_page_preview=True)
+            await message.reply_text(
+                Messages.DB_ERROR,
+                quote=True,
+                parse_mode=ParseMode.MARKDOWN,
+                disable_web_page_preview=True,
+            )
             return
 
     # 未命中的兜底提示
@@ -66,7 +81,7 @@ async def _fallback_commands(client, message):
         await message.reply_text(
             "⚠️ 命令已收到，但处理器未响应，请稍后重试或检查配置。",
             quote=True,
-            parse_mode=None,
+            parse_mode=ParseMode.MARKDOWN,
             disable_web_page_preview=True,
         )
     except Exception:
@@ -74,6 +89,6 @@ async def _fallback_commands(client, message):
         await message.reply_text(
             "⚠️ 命令已收到，但处理器未响应，请稍后重试或检查配置。",
             quote=True,
-            parse_mode=None,
+            parse_mode=ParseMode.MARKDOWN,
             disable_web_page_preview=True,
         )
