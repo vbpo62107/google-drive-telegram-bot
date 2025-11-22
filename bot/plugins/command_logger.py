@@ -47,10 +47,12 @@ async def _command_logger(client, message):
 
 @Client.on_message(filters.incoming, group=1)
 async def _message_logger(client, message):
+    command = _normalize_command(message)
     LOGGER.info(
-        "消息记录 user=%s chat=%s 类型=%s 文本=%r",
+        "消息记录 user=%s chat=%s 类型=%s 命令=%s 文本=%r",
         getattr(message.from_user, "id", None),
         getattr(message.chat, "id", None),
         getattr(message.chat, "type", None),
+        command,
         message.text,
     )
