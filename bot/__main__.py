@@ -17,6 +17,7 @@ logging.basicConfig(
         logging.FileHandler("log.txt", encoding="utf-8-sig"),
         logging.StreamHandler(),
     ],
+    force=True,
 )
 LOGGER = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)

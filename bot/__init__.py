@@ -6,6 +6,7 @@ logging.basicConfig(
     level=logging.INFO,
     handlers=[logging.FileHandler("log.txt", encoding="utf-8-sig"), logging.StreamHandler()],
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    force=True,
 )
 LOGGER = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
