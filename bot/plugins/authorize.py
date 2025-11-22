@@ -1,4 +1,4 @@
-import urllib.parse as urlparse
+﻿import urllib.parse as urlparse
 from dataclasses import dataclass
 from typing import Dict, Optional
 
@@ -88,13 +88,22 @@ async def _auth(client, message):
         )
         pending_flows[user_id] = PendingFlow(flow=flow, device=device_label, state=state)
         LOGGER.info("AuthURL:%s", user_id)
-        await message.reply_text(
-            text=Messages.AUTH_TEXT.format(auth_url),
-            quote=True,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Authorization URL", url=auth_url)]]),
-        )
+        try:
+            await message.reply_text(
+                text=Messages.AUTH_TEXT.format(auth_url),
+                quote=True,
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Authorization URL", url=auth_url)]]),
+                disable_web_page_preview=True,
+                parse_mode=None,
+            )
+        except Exception as exc:
+            LOGGER.exception("鍙戦€佹巿鏉冮摼鎺ュけ璐? %s", exc)
+            await message.reply_text(auth_url, quote=True, disable_web_page_preview=True, parse_mode=None)
     except Exception as exc:
-        await message.reply_text(f"**ERROR:** ```{exc}```", quote=True)
+        try:
+            await message.reply_text(f"**ERROR:** ```{exc}```", quote=True)
+        except Exception:
+            await message.reply_text(str(exc), quote=True, parse_mode=None)
 
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Revoke) & CustomFilters.auth_users)
@@ -122,8 +131,7 @@ async def _token(client, message):
         return
     if entry.state and state and state != entry.state:
         await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True)
-        return
-    sent_message = await message.reply_text("🕵️**Checking received code...**", quote=True)
+    sent_message = await message.reply_text("Checking received code...", quote=True, parse_mode=None, disable_web_page_preview=True)
     try:
         entry.flow.fetch_token(code=code)
         credentials = entry.flow.credentials
