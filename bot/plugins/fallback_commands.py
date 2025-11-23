@@ -25,6 +25,9 @@ AUTH_REQUIRED = set(
     )
 )
 
+YTDL_ALIASES = set(BotCommands.YtDl)
+DOWNLOAD_ALIASES = set(BotCommands.Download)
+
 SUDO_REQUIRED = set(chain(AUTH_REQUIRED, ["log", "restart"]))
 ALL_KNOWN_COMMANDS = set(chain(AUTH_REQUIRED, {"start", "help"}))
 
@@ -37,6 +40,8 @@ async def _fallback_commands(client, message):
     raw = (message.text or "").split()[0]
     command = raw.split("@", 1)[0].lstrip("/").lower()
     if not command or command not in ALL_KNOWN_COMMANDS:
+        return
+    if command in YTDL_ALIASES or command in DOWNLOAD_ALIASES:
         return
     user_id = getattr(message.from_user, "id", 0) or 0
 
