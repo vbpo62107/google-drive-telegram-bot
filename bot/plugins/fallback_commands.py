@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from itertools import chain
 
 from pyrogram import Client, filters
@@ -8,7 +8,6 @@ from bot import LOGGER, SUDO_USERS
 from bot.config import BotCommands, Messages
 from bot.helpers.sql_helper import gDriveDB
 
-# 需要授权的命令列表
 AUTH_REQUIRED = set(
     chain(
         BotCommands.Clone,
@@ -26,20 +25,14 @@ AUTH_REQUIRED = set(
     )
 )
 
-SUDO_REQUIRED = set(
-    chain(
-        AUTH_REQUIRED,
-        ["log", "restart"],
-    )
-)
-
+SUDO_REQUIRED = set(chain(AUTH_REQUIRED, ["log", "restart"]))
 ALL_KNOWN_COMMANDS = set(chain(AUTH_REQUIRED, {"start", "help"}))
 
 
 @Client.on_message(filters.private & filters.incoming & filters.regex(r"^/"), group=99)
 async def _fallback_commands(client, message):
     """
-    兜底：在命令未被其他处理器响应时提供明确提示，避免“无解析无回复”。
+    Fallback: if no handler responds, give a clear hint instead of silence.
     """
     raw = (message.text or "").split()[0]
     command = raw.split("@", 1)[0].lstrip("/").lower()
@@ -47,7 +40,7 @@ async def _fallback_commands(client, message):
         return
     user_id = getattr(message.from_user, "id", 0) or 0
 
-    # 权限判定
+    # Permission checks
     if command in SUDO_REQUIRED and user_id not in SUDO_USERS:
         await message.reply_text(
             "⚠️ 您没有权限使用此命令。",
@@ -67,7 +60,7 @@ async def _fallback_commands(client, message):
                 )
                 return
         except Exception as exc:
-        LOGGER.error("Fallback auth check failed: user=%s err=%s", user_id, exc)
+            LOGGER.error("Fallback auth check failed: user=%s err=%s", user_id, exc)
             await message.reply_text(
                 Messages.DB_ERROR,
                 quote=True,
@@ -76,7 +69,7 @@ async def _fallback_commands(client, message):
             )
             return
 
-    # 未命中的兜底提示
+    # Generic fallback
     try:
         await message.reply_text(
             "⚠️ 命令已收到，但处理器未响应，请稍后重试或检查配置。",
@@ -85,7 +78,7 @@ async def _fallback_commands(client, message):
             disable_web_page_preview=True,
         )
     except Exception:
-        logging.exception("兜底命令发送失败: user=%s command=%s", user_id, command)
+        logging.exception("Fallback send failed: user=%s command=%s", user_id, command)
         await message.reply_text(
             "⚠️ 命令已收到，但处理器未响应，请稍后重试或检查配置。",
             quote=True,
