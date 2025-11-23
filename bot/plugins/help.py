@@ -40,7 +40,7 @@ async def _start(client, message):
             parse_mode=ParseMode.MARKDOWN,
         )
     except Exception:
-        LOGGER.exception("发送 /start 响应失败")
+        LOGGER.exception("Failed to send /start response")
         await client.send_message(
             chat_id=message.chat.id,
             text=text,
@@ -65,7 +65,7 @@ async def _help(client, message):
             parse_mode=ParseMode.MARKDOWN,
         )
     except Exception:
-        LOGGER.exception("发送 /help 响应失败")
+        LOGGER.exception("Failed to send /help response")
         await client.send_message(
             chat_id=message.chat.id,
             text=text,
@@ -96,7 +96,7 @@ async def help_answer(client, callback_query):
             parse_mode=ParseMode.MARKDOWN,
         )
     except Exception:
-        LOGGER.exception("编辑帮助消息失败")
+        LOGGER.exception("Failed to edit help message")
         await client.send_message(
             chat_id=chat_id,
             text=text,

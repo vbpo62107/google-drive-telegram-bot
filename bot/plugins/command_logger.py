@@ -5,7 +5,6 @@ from pyrogram import Client, filters
 from bot import LOGGER
 from bot.config import BotCommands
 
-# 汇总需要记录的命令别名
 COMMAND_ALIASES = list(
     chain(
         BotCommands.Clone,
@@ -36,7 +35,7 @@ def _normalize_command(message):
 async def _command_logger(client, message):
     command = _normalize_command(message)
     LOGGER.info(
-        "命令命中 user=%s chat=%s 类型=%s 命令=%s 文本=%r",
+        "Command hit user=%s chat=%s type=%s cmd=%s text=%r",
         getattr(message.from_user, "id", None),
         getattr(message.chat, "id", None),
         getattr(message.chat, "type", None),
@@ -49,7 +48,7 @@ async def _command_logger(client, message):
 async def _message_logger(client, message):
     command = _normalize_command(message)
     LOGGER.info(
-        "消息记录 user=%s chat=%s 类型=%s 命令=%s 文本=%r",
+        "Message log user=%s chat=%s type=%s cmd=%s text=%r",
         getattr(message.from_user, "id", None),
         getattr(message.chat, "id", None),
         getattr(message.chat, "type", None),

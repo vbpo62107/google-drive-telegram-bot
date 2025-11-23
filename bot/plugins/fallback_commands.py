@@ -67,7 +67,7 @@ async def _fallback_commands(client, message):
                 )
                 return
         except Exception as exc:
-            LOGGER.error("Fallback 授权检查失败: user=%s err=%s", user_id, exc)
+        LOGGER.error("Fallback auth check failed: user=%s err=%s", user_id, exc)
             await message.reply_text(
                 Messages.DB_ERROR,
                 quote=True,

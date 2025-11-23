@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     # 使用包路径作为插件根，避免传入文件系统路径导致导入错误
     plugin_root = "bot.plugins"
-    LOGGER.info("插件目录: %s", plugin_root)
+    LOGGER.info("Plugin root: %s", plugin_root)
 
     # Import core modules so that all command handlers inside
     # bot.modules are registered, regardless of plugin settings.
@@ -95,6 +95,6 @@ if __name__ == "__main__":
         plugins=plugins,
         parse_mode=ParseMode.MARKDOWN,
     )
-    LOGGER.info("启动机器人...")
+    LOGGER.info("Starting bot...")
     app.run()
-    LOGGER.info("机器人已停止。")
+    LOGGER.info("Bot stopped.")
