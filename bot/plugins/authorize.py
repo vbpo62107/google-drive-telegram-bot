@@ -1,9 +1,10 @@
-import urllib.parse as urlparse
+﻿import urllib.parse as urlparse
 from dataclasses import dataclass
 from typing import Dict, Optional
 
 from google_auth_oauthlib.flow import Flow
 from pyrogram import Client, filters
+from pyrogram.enums import ParseMode
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot import (
@@ -75,7 +76,7 @@ async def _auth(client, message):
             credential_manager.build_credentials(user_id, record)
             gDriveDB.reset_failures(user_id)
             invalidate_drive_instance(user_id)
-            await message.reply_text(Messages.ALREADY_AUTH, quote=True)
+            await message.reply_text(Messages.ALREADY_AUTH, quote=True, parse_mode=ParseMode.MARKDOWN)
             return
         except Exception as exc:
             LOGGER.warning("Failed to refresh existing credentials for %s: %s", user_id, exc)
@@ -94,16 +95,16 @@ async def _auth(client, message):
                 quote=True,
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Authorization URL", url=auth_url)]]),
                 disable_web_page_preview=True,
-                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                parse_mode=ParseMode.MARKDOWN,
             )
         except Exception as exc:
-            LOGGER.exception("发送授权链接失�? %s", exc)
-            await message.reply_text(auth_url, quote=True, disable_web_page_preview=True, parse_mode=pyrogram.enums.ParseMode.MARKDOWN)
+            LOGGER.exception("send auth link failed: %s", exc)
+            await message.reply_text(auth_url, quote=True, disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
     except Exception as exc:
         try:
-            await message.reply_text(f"**ERROR:** ```{exc}```", quote=True)
+            await message.reply_text(f"**ERROR:** ```{exc}```", quote=True, parse_mode=ParseMode.MARKDOWN)
         except Exception:
-            await message.reply_text(str(exc), quote=True, parse_mode=pyrogram.enums.ParseMode.MARKDOWN)
+            await message.reply_text(str(exc), quote=True, parse_mode=None)
 
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Revoke) & CustomFilters.auth_users)
@@ -114,9 +115,9 @@ async def _revoke(client, message):
         pending_flows.pop(user_id, None)
         invalidate_drive_instance(user_id)
         LOGGER.info("Revoked:%s", user_id)
-        await message.reply_text(Messages.REVOKED, quote=True)
+        await message.reply_text(Messages.REVOKED, quote=True, parse_mode=ParseMode.MARKDOWN)
     except Exception as exc:
-        await message.reply_text(f"**ERROR:** ```{exc}```", quote=True)
+        await message.reply_text(f"**ERROR:** ```{exc}```", quote=True, parse_mode=ParseMode.MARKDOWN)
 
 
 @Client.on_message(filters.private & filters.incoming & filters.text)
@@ -127,15 +128,15 @@ async def _token(client, message):
         return
     code, state = _parse_code(message.text or "")
     if not code:
-        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True)
+        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True, parse_mode=ParseMode.MARKDOWN)
         return
     if entry.state and state and state != entry.state:
-        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True, parse_mode=pyrogram.enums.ParseMode.MARKDOWN, disable_web_page_preview=True)
+        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True, parse_mode=ParseMode.MARKDOWN)
         return
     sent_message = await message.reply_text(
         "Checking received code...",
         quote=True,
-        parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+        parse_mode=ParseMode.MARKDOWN,
         disable_web_page_preview=True,
     )
     try:
@@ -157,4 +158,3 @@ async def _token(client, message):
         await sent_message.edit(Messages.INVALID_AUTH_CODE)
     finally:
         pending_flows.pop(user_id, None)
-
