@@ -6,7 +6,6 @@ from bot.config import BotCommands
 
 
 DOWNLOAD_ALIASES = set(BotCommands.Download)
-YTDL_ALIASES = set(BotCommands.YtDl)
 LIST_ALIASES = set(BotCommands.ListDrive)
 SEARCH_ALIASES = set(BotCommands.SearchDrive)
 SETFOLDER_ALIASES = set(BotCommands.SetFolder)
@@ -29,8 +28,6 @@ MONITOR_DELETE = {"delmonitor"}
             *BotCommands.ListDrive,
             # searchdrive aliases
             *BotCommands.SearchDrive,
-            # ytdl aliases
-            *BotCommands.YtDl,
             # setfolder aliases
             *BotCommands.SetFolder,
             # monitor commands
@@ -58,11 +55,6 @@ async def debug_command_router(client: Client, message: Message) -> None:
             from bot.modules.download_manager import download_handler
 
             await download_handler(client, message)
-            return
-        if command in YTDL_ALIASES:
-            from bot.modules.download_manager import ytdl_handler
-
-            await ytdl_handler(client, message)
             return
         if command == "mirror":
             from bot.modules.mirror import mirror_handler
