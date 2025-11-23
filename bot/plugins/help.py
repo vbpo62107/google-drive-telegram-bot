@@ -1,6 +1,7 @@
 from bot import LOGGER, SUPPORT_CHAT_LINK
 from bot.config import Messages as tr
 from pyrogram import Client, filters
+from pyrogram.enums import ParseMode
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
@@ -36,6 +37,7 @@ async def _start(client, message):
             reply_markup=None,
             reply_to_message_id=message.id,
             disable_web_page_preview=True,
+            parse_mode=ParseMode.MARKDOWN,
         )
     except Exception:
         LOGGER.exception("发送 /start 响应失败")
@@ -45,7 +47,7 @@ async def _start(client, message):
             reply_markup=None,
             reply_to_message_id=message.id,
             disable_web_page_preview=True,
-            parse_mode=None,
+            parse_mode=ParseMode.MARKDOWN,
         )
 
 
@@ -60,6 +62,7 @@ async def _help(client, message):
             reply_markup=markup,
             reply_to_message_id=message.id,
             disable_web_page_preview=True,
+            parse_mode=ParseMode.MARKDOWN,
         )
     except Exception:
         LOGGER.exception("发送 /help 响应失败")
@@ -69,7 +72,7 @@ async def _help(client, message):
             reply_markup=None,
             reply_to_message_id=message.id,
             disable_web_page_preview=True,
-            parse_mode=None,
+            parse_mode=ParseMode.MARKDOWN,
         )
 
 
@@ -90,6 +93,7 @@ async def help_answer(client, callback_query):
             text=text,
             reply_markup=markup,
             disable_web_page_preview=True,
+            parse_mode=ParseMode.MARKDOWN,
         )
     except Exception:
         LOGGER.exception("编辑帮助消息失败")
@@ -98,4 +102,5 @@ async def help_answer(client, callback_query):
             text=text,
             reply_markup=markup,
             disable_web_page_preview=True,
+            parse_mode=ParseMode.MARKDOWN,
         )

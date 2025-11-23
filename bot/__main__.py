@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List
 
 from pyrogram import Client
+from pyrogram.enums import ParseMode
 
 from bot import APP_ID, API_HASH, BOT_TOKEN, DOWNLOAD_DIRECTORY
 from bot.modules.drive_helper import cleanup_drive_instances
@@ -92,7 +93,7 @@ if __name__ == "__main__":
         api_hash=API_HASH,
         workdir=DOWNLOAD_DIRECTORY,
         plugins=plugins,
-        parse_mode=None,  # 关闭全局 Markdown 解析，避免中文文本格式导致发送失败
+        parse_mode=ParseMode.MARKDOWN,
     )
     LOGGER.info("启动机器人...")
     app.run()

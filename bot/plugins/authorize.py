@@ -104,7 +104,7 @@ async def _auth(client, message):
         try:
             await message.reply_text(f"**ERROR:** ```{exc}```", quote=True, parse_mode=ParseMode.MARKDOWN)
         except Exception:
-            await message.reply_text(str(exc), quote=True, parse_mode=None)
+            await message.reply_text(str(exc), quote=True, parse_mode=ParseMode.MARKDOWN)
 
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Revoke) & CustomFilters.auth_users)
