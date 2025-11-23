@@ -253,7 +253,7 @@ class DirectLinkFetcher(Fetcher):
                         await response.aclose()
                     else:
                         response.close()
-                    raise FetchError("閲嶅畾鍚戠己灏戠洰鏍?)
+                    raise FetchError("閲嶅畾鍚戠己灏戠洰鏍?")
                 next_url = urljoin(str(response.request.url), location)
                 await self._assert_safe_destination(next_url, cache)
                 try:
@@ -263,13 +263,13 @@ class DirectLinkFetcher(Fetcher):
                         await response.aclose()
                     else:
                         response.close()
-                    raise FetchError("閲嶅畾鍚戠洰鏍囨棤鏁?) from exc
+                    raise FetchError("閲嶅畾鍚戠洰鏍囨棤鏁?") from exc
                 if normalized in visited:
                     if stream:
                         await response.aclose()
                     else:
                         response.close()
-                    raise FetchError("妫€娴嬪埌閲嶅畾鍚戝惊鐜?)
+                    raise FetchError("妫€娴嬪埌閲嶅畾鍚戝惊鐜?")
                 visited.add(normalized)
                 if stream:
                     await response.aclose()
@@ -278,7 +278,7 @@ class DirectLinkFetcher(Fetcher):
                 current = normalized
                 continue
             return response, str(response.request.url)
-        raise FetchError("閲嶅畾鍚戣繃澶?)
+        raise FetchError("閲嶅畾鍚戣繃澶?")
 
     def _normalize_type(self, value: Optional[str]) -> Optional[str]:
         if not value:
@@ -331,7 +331,7 @@ class TelegramFetcher(Fetcher):
             target = reply if attempt == 1 else await client.get_messages(reply.chat.id, reply.id)
             media = self._extract_media(target)
             if media is None:
-                raise FetchError("鏈壘鍒板彲涓嬭浇鐨勫獟浣?)
+                raise FetchError("鏈壘鍒板彲涓嬭浇鐨勫獟浣?")
             mime_type = getattr(media, "mime_type", None)
             filename = preferred or getattr(media, "file_name", None)
             file_id_str = getattr(media, "file_id", None)
@@ -351,7 +351,7 @@ class TelegramFetcher(Fetcher):
                 await asyncio.to_thread(os.replace, temp_path, final_path)
                 return FetchResult(str(final_path), final_path.name, final_mime, size)
             except AuthBytesInvalid:
-                last_error = "鏂囦欢寮曠敤宸插け鏁?
+                last_error = "鏂囦欢寮曠敤宸插け鏁?"
                 await asyncio.sleep(1)
                 continue
             except FloodWait as exc:
