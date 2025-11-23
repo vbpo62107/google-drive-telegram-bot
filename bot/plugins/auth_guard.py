@@ -13,6 +13,7 @@ AUTH_REQUIRED_COMMANDS = list(
         BotCommands.EmptyTrash,
         BotCommands.SetFolder,
         BotCommands.Download,
+        BotCommands.YtDl,
         BotCommands.Revoke,
     )
 )

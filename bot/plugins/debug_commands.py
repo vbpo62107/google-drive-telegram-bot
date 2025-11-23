@@ -3,6 +3,7 @@ from pyrogram.types import Message
 
 from bot import LOGGER, SUDO_USERS
 from bot.config import BotCommands
+from bot.helpers.utils import CustomFilters
 
 
 DOWNLOAD_ALIASES = set(BotCommands.Download)
@@ -107,3 +108,22 @@ async def debug_command_router(client: Client, message: Message) -> None:
     except Exception as exc:
         LOGGER.exception("DEBUG router failed for command %s: %s", command, exc)
         await message.reply_text(f"⚠️ 命令执行出错：{exc}", quote=True)
+
+
+@Client.on_message(
+    filters.private
+    & filters.incoming
+    & filters.command(BotCommands.YtDl)
+    & CustomFilters.auth_users
+    & filters.user(SUDO_USERS),
+    group=1,
+)
+async def ytdl_command_router(client: Client, message: Message) -> None:
+    LOGGER.info(
+        "YTDL router hit: user=%s text=%r",
+        getattr(message.from_user, "id", None),
+        message.text,
+    )
+    from bot.modules.download_manager import ytdl_handler
+
+    await ytdl_handler(client, message)

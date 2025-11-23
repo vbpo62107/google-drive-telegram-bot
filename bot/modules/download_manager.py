@@ -25,8 +25,7 @@ from pyrogram.file_id import FileId
 
 from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS, LOGGER
 from bot.config import BotCommands, Messages
-from bot.helpers.sql_helper import gDriveDB
-from bot.helpers.utils import CustomFilters, humanbytes, get_floodwait_seconds
+from bot.helpers.utils import humanbytes, get_floodwait_seconds
 from bot.modules.drive_helper import DriveAccessError, drive_error_message
 from bot.modules.gdriveTools import GoogleDriveHelper
 
@@ -562,14 +561,6 @@ async def ytdl_handler(client, message):
     if message.from_user is None:
         return
     user_id = message.from_user.id
-    try:
-        if not gDriveDB.is_authorized(user_id):
-            await client.send_message(message.chat.id, Messages.NOT_AUTH)
-            return
-    except Exception as exc:
-        LOGGER.error("YTDL auth check failed for user %s: %s", user_id, exc)
-        await client.send_message(message.chat.id, Messages.DB_ERROR)
-        return
     if user_id not in SUDO_USERS:
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
         return
@@ -579,9 +570,6 @@ async def ytdl_handler(client, message):
         return
     fetcher = YtDlpFetcher(DOWNLOAD_PATH, MAX_MIRROR_FILE_SIZE)
     await _handle_fetch(client, message, fetcher, url=url)
-
-
-
 
 
 
