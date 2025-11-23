@@ -52,6 +52,11 @@ def _sanitize_device_label(user_id: int, label: Optional[str]) -> str:
 
 def _parse_code(text: str) -> tuple[Optional[str], Optional[str]]:
     stripped = text.strip()
+    if not stripped:
+        return None, None
+    # Ignore bot commands to avoid treating /ytdl 等命令为 OAuth 代码
+    if stripped.startswith("/"):
+        return None, None
     if "code=" in stripped:
         parsed = urlparse.urlparse(stripped)
         query = urlparse.parse_qs(parsed.query)
@@ -128,10 +133,8 @@ async def _token(client, message):
         return
     code, state = _parse_code(message.text or "")
     if not code:
-        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True, parse_mode=ParseMode.MARKDOWN)
         return
     if entry.state and state and state != entry.state:
-        await message.reply_text(Messages.INVALID_AUTH_CODE, quote=True, parse_mode=ParseMode.MARKDOWN)
         return
     sent_message = await message.reply_text(
         "Checking received code...",
