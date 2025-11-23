@@ -9,6 +9,7 @@ DOWNLOAD_ALIASES = set(BotCommands.Download)
 LIST_ALIASES = set(BotCommands.ListDrive)
 SEARCH_ALIASES = set(BotCommands.SearchDrive)
 SETFOLDER_ALIASES = set(BotCommands.SetFolder)
+YTDL_ALIASES = set(BotCommands.YtDl)
 MONITOR_ADD = {"addmonitor"}
 MONITOR_LIST = {"listmonitor"}
 MONITOR_TOGGLE = {"togglemonitor"}
@@ -24,6 +25,8 @@ MONITOR_DELETE = {"delmonitor"}
             *BotCommands.Download,
             # mirror
             "mirror",
+            # ytdl aliases
+            *BotCommands.YtDl,
             # listdrive aliases
             *BotCommands.ListDrive,
             # searchdrive aliases
@@ -60,6 +63,11 @@ async def debug_command_router(client: Client, message: Message) -> None:
             from bot.modules.mirror import mirror_handler
 
             await mirror_handler(client, message)
+            return
+        if command in YTDL_ALIASES:
+            from bot.modules.download_manager import ytdl_handler
+
+            await ytdl_handler(client, message)
             return
         if command in LIST_ALIASES:
             from bot.modules.list_drive import list_drive_handler
