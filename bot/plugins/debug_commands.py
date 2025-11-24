@@ -107,7 +107,6 @@ async def debug_command_router(client: Client, message: Message) -> None:
     & filters.incoming
     & filters.command(BotCommands.YtDl)
     & CustomFilters.auth_users
-    & filters.user(SUDO_USERS),
     group=1,
 )
 async def ytdl_command_router(client: Client, message: Message) -> None:
