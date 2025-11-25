@@ -1,3 +1,5 @@
+from typing import Optional
+
 from bot import LOGGER, SUPPORT_CHAT_LINK
 from bot.config import Messages as tr
 from pyrogram import Client, filters
@@ -27,20 +29,35 @@ def _build_help_keyboard(pos: int) -> list[list[InlineKeyboardButton]]:
     ]
 
 
-@Client.on_message(filters.private & filters.incoming & filters.command(["start"]), group=2)
-async def _start(client, message):
-    text = tr.START_MSG.format(message.from_user.mention)
+async def _send_response(
+    client: Client,
+    message,
+    text: str,
+    command_name: str,
+    reply_markup: Optional[InlineKeyboardMarkup] = None,
+) -> None:
     try:
         await client.send_message(
             chat_id=message.chat.id,
             text=text,
-            reply_markup=None,
+            reply_markup=reply_markup,
             reply_to_message_id=message.id,
             disable_web_page_preview=True,
             parse_mode=ParseMode.MARKDOWN,
         )
-    except Exception:
-        LOGGER.exception("Failed to send /start response")
+    except Exception as exc:
+        LOGGER.exception(
+            "Failed to send %s response (chat_id=%s, user_id=%s, message_id=%s)",
+            command_name,
+            getattr(message.chat, "id", "unknown"),
+            getattr(message.from_user, "id", "unknown"),
+            getattr(message, "id", "unknown"),
+        )
+        LOGGER.warning(
+            "Retrying %s response without custom markup due to error: %s",
+            command_name,
+            exc,
+        )
         await client.send_message(
             chat_id=message.chat.id,
             text=text,
@@ -49,31 +66,19 @@ async def _start(client, message):
             disable_web_page_preview=True,
             parse_mode=ParseMode.MARKDOWN,
         )
+
+
+@Client.on_message(filters.private & filters.incoming & filters.command(["start"]), group=2)
+async def _start(client, message):
+    text = tr.START_MSG.format(message.from_user.mention)
+    await _send_response(client, message, text, "/start")
 
 
 @Client.on_message(filters.private & filters.incoming & filters.command(["help"]), group=2)
 async def _help(client, message):
     text = tr.HELP_MSG[1]
     markup = InlineKeyboardMarkup(_build_help_keyboard(1))
-    try:
-        await client.send_message(
-            chat_id=message.chat.id,
-            text=text,
-            reply_markup=markup,
-            reply_to_message_id=message.id,
-            disable_web_page_preview=True,
-            parse_mode=ParseMode.MARKDOWN,
-        )
-    except Exception:
-        LOGGER.exception("Failed to send /help response")
-        await client.send_message(
-            chat_id=message.chat.id,
-            text=text,
-            reply_markup=None,
-            reply_to_message_id=message.id,
-            disable_web_page_preview=True,
-            parse_mode=ParseMode.MARKDOWN,
-        )
+    await _send_response(client, message, text, "/help", markup)
 
 
 help_callback_filter = filters.create(lambda _, __, query: (query.data or "").startswith("help+"))

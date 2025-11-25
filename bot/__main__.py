@@ -66,6 +66,8 @@ def _import_plugins() -> None:
         import_path = f"bot.plugins.{path.stem}"
         try:
             import_module(import_path)
+            if import_path == "bot.plugins.help":
+                LOGGER.info("Help plugin imported successfully: %s", import_path)
         except Exception:  # pragma: no cover - fail fast on import errors
             LOGGER.exception("Failed to import plugin %s", import_path)
             raise
