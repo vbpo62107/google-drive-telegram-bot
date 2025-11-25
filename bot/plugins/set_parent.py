@@ -6,6 +6,7 @@ from bot import LOGGER
 from bot.config import BotCommands, Messages
 from bot.helpers.sql_helper import idsDB
 from bot.helpers.utils import CustomFilters
+from bot.plugins.utils import mark_command_handled
 from bot.modules.drive_helper import (
     DriveAccessError,
     drive_error_message,
@@ -16,6 +17,7 @@ from bot.modules.drive_helper import (
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.SetFolder) & CustomFilters.auth_users)
 async def _set_parent(client, message):
+    mark_command_handled(message)
     user_id = message.from_user.id
     if len(message.command) <= 1:
         await message.reply_text(

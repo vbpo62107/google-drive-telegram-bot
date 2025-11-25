@@ -4,6 +4,7 @@ from pyrogram import Client, filters
 
 from bot.config import BotCommands, Messages
 from bot.helpers.utils import CustomFilters
+from bot.plugins.utils import mark_command_handled
 
 
 AUTH_REQUIRED_COMMANDS = list(
@@ -47,6 +48,7 @@ PRIVATE_ONLY_COMMANDS = list(
     & ~CustomFilters.auth_users
 )
 async def _auth_required_feedback(client: Client, message):
+    mark_command_handled(message)
     await message.reply_text(Messages.NOT_AUTH, quote=True)
 
 
@@ -55,6 +57,7 @@ async def _auth_required_feedback(client: Client, message):
     & filters.command(PRIVATE_ONLY_COMMANDS)
 )
 async def _group_redirect(client: Client, message):
+    mark_command_handled(message)
     await message.reply_text(Messages.GROUP_USE_PRIVATE, quote=True)
 
 

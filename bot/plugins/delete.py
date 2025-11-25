@@ -5,6 +5,7 @@ from pyrogram import Client, filters
 from bot import LOGGER, SUDO_USERS
 from bot.config import BotCommands, Messages
 from bot.helpers.utils import CustomFilters
+from bot.plugins.utils import mark_command_handled
 from bot.modules.drive_helper import (
     DriveAccessError,
     drive_error_message,
@@ -14,6 +15,7 @@ from bot.modules.drive_helper import (
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Delete) & CustomFilters.auth_users)
 async def _delete(client, message):
+    mark_command_handled(message)
     user = message.from_user
     if user is None or user.id not in SUDO_USERS:
         await message.reply_text("⚠️ 您没有权限使用此命令.", quote=True)
@@ -45,6 +47,7 @@ async def _delete(client, message):
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.EmptyTrash) & CustomFilters.auth_users)
 async def _emptyTrash(client, message):
+    mark_command_handled(message)
     user = message.from_user
     if user is None or user.id not in SUDO_USERS:
         await message.reply_text("⚠️ 您没有权限使用此命令.", quote=True)

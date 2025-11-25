@@ -4,6 +4,7 @@ from pyrogram.types import Message
 from bot import LOGGER, SUDO_USERS
 from bot.config import BotCommands
 from bot.helpers.utils import CustomFilters
+from bot.plugins.utils import mark_command_handled
 
 
 DOWNLOAD_ALIASES = set(BotCommands.Download)
@@ -42,6 +43,7 @@ MONITOR_DELETE = {"delmonitor"}
     group=1,
 )
 async def debug_command_router(client: Client, message: Message) -> None:
+    mark_command_handled(message)
     command = None
     if hasattr(message, "command") and message.command:
         command = (message.command[0] or "").lstrip("/").lower()
@@ -110,6 +112,7 @@ async def debug_command_router(client: Client, message: Message) -> None:
     group=1,
 )
 async def ytdl_command_router(client: Client, message: Message) -> None:
+    mark_command_handled(message)
     LOGGER.info(
         "YTDL router hit: user=%s text=%r",
         getattr(message.from_user, "id", None),

@@ -15,6 +15,7 @@ from pyrogram.errors import FloodWait, RPCError
     group=2,
 )
 async def _send_log(client, message):
+    setattr(message, "_command_handled", True)
     with open("log.txt", "rb") as handle:
         try:
             await client.send_document(
@@ -37,8 +38,15 @@ async def _send_log(client, message):
     group=2,
 )
 async def _restart(client, message):
+    setattr(message, "_command_handled", True)
     shutil.rmtree(DOWNLOAD_DIRECTORY)
     LOGGER.info("Deleted DOWNLOAD_DIRECTORY successfully.")
     await message.reply_text("**♻️Restarted Successfully !**", quote=True, parse_mode=ParseMode.MARKDOWN)
     LOGGER.info("%s: Restarting...", message.from_user.id)
     execl(executable, executable, "-m", "bot")
+
+
+def mark_command_handled(message) -> None:
+    """Mark the incoming message as already processed to skip fallback responders."""
+
+    setattr(message, "_command_handled", True)

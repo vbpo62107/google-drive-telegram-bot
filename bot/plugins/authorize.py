@@ -17,6 +17,7 @@ from bot.config import BotCommands, Messages
 from bot.helpers.gdrive_utils.credentials_manager import credential_manager
 from bot.helpers.sql_helper import gDriveDB
 from bot.helpers.utils import CustomFilters
+from bot.plugins.utils import mark_command_handled
 from bot.modules.drive_helper import invalidate_drive_instance
 
 
@@ -71,6 +72,7 @@ pending_flows: Dict[int, PendingFlow] = {}
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Authorize))
 async def _auth(client, message):
+    mark_command_handled(message)
     user_id = message.from_user.id
     text = message.text or ""
     parts = text.split(maxsplit=1)
@@ -114,6 +116,7 @@ async def _auth(client, message):
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Revoke) & CustomFilters.auth_users)
 async def _revoke(client, message):
+    mark_command_handled(message)
     user_id = message.from_user.id
     try:
         gDriveDB._clear(user_id)

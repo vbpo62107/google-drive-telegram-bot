@@ -6,11 +6,13 @@ from pyrogram import Client, filters
 from bot import SUDO_USERS
 from bot.config import BotCommands, Messages
 from bot.helpers.utils import CustomFilters
+from bot.plugins.utils import mark_command_handled
 from bot.modules.drive_helper import DriveAccessError, drive_error_message, get_drive_instance
 
 
 @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Clone) & CustomFilters.auth_users)
 async def clone_handler(client, message):
+    mark_command_handled(message)
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
         return
