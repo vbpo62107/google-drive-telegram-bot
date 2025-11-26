@@ -40,6 +40,9 @@ async def _fallback_commands(client, message):
     command = raw.split("@", 1)[0].lstrip("/").lower()
     if not command or command not in ALL_KNOWN_COMMANDS:
         return
+    # Handlers now registered, no need to skip legacy ytdl/download fallback
+    # if command in ("ytdl", "download"):
+    #     return
     user_id = getattr(message.from_user, "id", 0) or 0
 
     # Permission checks
