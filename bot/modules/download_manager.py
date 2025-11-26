@@ -536,7 +536,7 @@ async def _handle_fetch(client: Client, message, fetcher: Fetcher, *, url: Optio
                 os.remove(result.path)
 
 
-@Client.on_message(filters.command(BotCommands.Download) & filters.private)
+@Client.on_message(filters.command(BotCommands.Download) & filters.private, group=0)
 async def download_handler(client, message):
     LOGGER.info("download_handler invoked: user=%s text=%r", getattr(message.from_user, "id", None), message.text)
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
@@ -557,7 +557,7 @@ async def download_handler(client, message):
     await _handle_fetch(client, message, fetcher, url=url, preferred_name=preferred)
 
 
-@Client.on_message(filters.command(BotCommands.YtDl) & filters.private)
+@Client.on_message(filters.command(BotCommands.YtDl) & filters.private, group=0)
 async def ytdl_handler(client, message):
     LOGGER.info("ytdl_handler invoked: user=%s text=%r", getattr(message.from_user, "id", None), message.text)
     if message.from_user is None:
