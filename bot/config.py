@@ -70,15 +70,55 @@ class Messages:
     DB_ERROR = "⚠️ 数据库访问失败，请稍后再试或检查 DATABASE_URL 配置。"
 
     DOWNLOADED_SUCCESSFULLY = "📤 **上传文件中...**\n**Filename:** ```{}```\n**Size:** ```{}```"
-    
+
     UPLOADED_SUCCESSFULLY = "✅ **上传成功.**\n[{}]({}) __({})__"
-    
+
     DOWNLOAD_ERROR = "❗**下载失败**\n{}\n__Link - {}__"
 
     INVALID_FILENAME = "❗ **无效的文件名**\n__请提供有效的文件名.__"
-    
+
     DOWNLOADING = "📥 **下载文件...\nLink:** ```{}```"
-    
+
+    DOWNLOAD_PREPARING = "📥 **正在准备下载...**"
+
+    DOWNLOAD_FAILED = "❌ {}"
+
+    DOWNLOAD_MISSING_URL = "缺少下载链接"
+
+    DOWNLOAD_FILE_TOO_LARGE = "文件大小超出限制"
+
+    DOWNLOAD_TYPE_NOT_ALLOWED = "文件类型不在允许范围"
+
+    DOWNLOAD_ONLY_HTTP = "仅支持 HTTP/HTTPS 链接"
+
+    DOWNLOAD_INVALID_URL = "链接无效"
+
+    DOWNLOAD_RESOLVE_FAILED = "无法解析主机地址"
+
+    DOWNLOAD_FORBIDDEN_DEST = "链接指向受限地址"
+
+    DOWNLOAD_REDIRECT_NO_TARGET = "重定向缺少目标"
+
+    DOWNLOAD_REDIRECT_INVALID = "重定向目标无效"
+
+    DOWNLOAD_REDIRECT_LOOP = "检测到重定向循环"
+
+    DOWNLOAD_REDIRECT_TOO_MANY = "重定向次数过多"
+
+    DOWNLOAD_REPLY_REQUIRED = "请回复包含媒体的消息"
+
+    DOWNLOAD_MEDIA_NOT_FOUND = "未找到可下载的媒体"
+
+    DOWNLOAD_FILE_ID_MISSING = "无法获取文件标识"
+
+    DOWNLOAD_FILE_REFERENCE_INVALID = "文件引用已失效"
+
+    DOWNLOAD_TOO_MANY_REQUESTS = "请求过于频繁，请 {} 秒后重试"
+
+    DOWNLOAD_INTERNAL_ERROR = "内部错误"
+
+    DOWNLOAD_GENERIC_ERROR = "下载失败"
+
     ALREADY_AUTH = "🔒 **已授权您的Google云端硬盘帐户.**\n__Use /revoke to revoke the current account.__\n__Send me a direct link or File to Upload on Google Drive__"
     
     AUTH_SUCCESSFULLY = '🔐 **成功授权Google云端硬盘帐户.**'

@@ -89,7 +89,7 @@ class DirectLinkFetcher(Fetcher):
         url = kwargs.get("url")
         preferred = kwargs.get("preferred_name")
         if not url:
-            raise FetchError("缂哄皯涓嬭浇閾炬帴")
+            raise FetchError(Messages.DOWNLOAD_MISSING_URL)
         resolver_cache: dict[str, set[str]] = {}
         await self._assert_safe_destination(url, resolver_cache)
         headers = {"User-Agent": USER_AGENT}
@@ -104,9 +104,9 @@ class DirectLinkFetcher(Fetcher):
                     size_hint = self._parse_length(head.headers.get("Content-Length"))
                     filename = self._extract_filename(head.headers.get("Content-Disposition"))
                     if size_hint and size_hint > self.max_size:
-                        raise FetchError("鏂囦欢澶у皬瓒呭嚭闄愬埗")
+                        raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
                     if mime_type and not self._is_allowed_type(mime_type):
-                        raise FetchError("鏂囦欢绫诲瀷涓嶅湪鐧藉悕鍗曞唴")
+                        raise FetchError(Messages.DOWNLOAD_TYPE_NOT_ALLOWED)
                 finally:
                     head.close()
             try:
@@ -121,10 +121,10 @@ class DirectLinkFetcher(Fetcher):
                     if mime_type is None:
                         mime_type = self._normalize_type(response.headers.get("Content-Type"))
                         if mime_type and not self._is_allowed_type(mime_type):
-                            raise FetchError("鏂囦欢绫诲瀷涓嶅湪鐧藉悕鍗曞唴")
+                            raise FetchError(Messages.DOWNLOAD_TYPE_NOT_ALLOWED)
                     actual_length = self._parse_length(response.headers.get("Content-Length"))
                     if actual_length and actual_length > self.max_size:
-                        raise FetchError("鏂囦欢澶у皬瓒呭嚭闄愬埗")
+                        raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
                     if preferred:
                         filename = sanitize_filename(preferred)
                     if not filename:
@@ -144,7 +144,7 @@ class DirectLinkFetcher(Fetcher):
                                     continue
                                 downloaded += len(chunk)
                                 if downloaded > self.max_size:
-                                    raise FetchError("鏂囦欢澶у皬瓒呭嚭闄愬埗")
+                                    raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
                                 await handle.write(chunk)
                         await asyncio.to_thread(os.replace, temp_path, final_path)
                         return FetchResult(str(final_path), final_path.name, mime_type, downloaded)
@@ -156,7 +156,7 @@ class DirectLinkFetcher(Fetcher):
                     await response.aclose()
             except httpx.RequestError as exc:
                 raise FetchError(str(exc))
-        raise FetchError("涓嬭浇澶辫触")
+        raise FetchError(Messages.DOWNLOAD_GENERIC_ERROR)
 
     async def _head(
         self,
@@ -215,19 +215,19 @@ class DirectLinkFetcher(Fetcher):
     ) -> None:
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"}:
-            raise FetchError("浠呮敮鎸?HTTP/HTTPS 閾炬帴")
+            raise FetchError(Messages.DOWNLOAD_ONLY_HTTP)
         if parsed.hostname is None:
-            raise FetchError("閾炬帴鏃犳晥")
+            raise FetchError(Messages.DOWNLOAD_INVALID_URL)
         host = parsed.hostname
         addresses = cache.get(host)
         if addresses is None:
             addresses = await self._resolve(host)
             cache[host] = addresses
         if not addresses:
-            raise FetchError("鏃犳硶瑙ｆ瀽涓绘満鍦板潃")
+            raise FetchError(Messages.DOWNLOAD_RESOLVE_FAILED)
         for ip in addresses:
             if self._is_forbidden_ip(ip):
-                raise FetchError("閾炬帴鎸囧悜鍙楅檺鍦板潃")
+                raise FetchError(Messages.DOWNLOAD_FORBIDDEN_DEST)
 
     async def _follow_redirects(
         self,
@@ -252,7 +252,7 @@ class DirectLinkFetcher(Fetcher):
                         await response.aclose()
                     else:
                         response.close()
-                    raise FetchError("閲嶅畾鍚戠己灏戠洰鏍?")
+                    raise FetchError(Messages.DOWNLOAD_REDIRECT_NO_TARGET)
                 next_url = urljoin(str(response.request.url), location)
                 await self._assert_safe_destination(next_url, cache)
                 try:
@@ -262,13 +262,13 @@ class DirectLinkFetcher(Fetcher):
                         await response.aclose()
                     else:
                         response.close()
-                    raise FetchError("閲嶅畾鍚戠洰鏍囨棤鏁?") from exc
+                    raise FetchError(Messages.DOWNLOAD_REDIRECT_INVALID) from exc
                 if normalized in visited:
                     if stream:
                         await response.aclose()
                     else:
                         response.close()
-                    raise FetchError("妫€娴嬪埌閲嶅畾鍚戝惊鐜?")
+                    raise FetchError(Messages.DOWNLOAD_REDIRECT_LOOP)
                 visited.add(normalized)
                 if stream:
                     await response.aclose()
@@ -277,7 +277,7 @@ class DirectLinkFetcher(Fetcher):
                 current = normalized
                 continue
             return response, str(response.request.url)
-        raise FetchError("閲嶅畾鍚戣繃澶?")
+        raise FetchError(Messages.DOWNLOAD_REDIRECT_TOO_MANY)
 
     def _normalize_type(self, value: Optional[str]) -> Optional[str]:
         if not value:
@@ -319,7 +319,7 @@ class TelegramFetcher(Fetcher):
     async def fetch(self, client: Client, message, **kwargs) -> FetchResult:
         reply = message.reply_to_message
         if not reply:
-            raise FetchError("璇峰洖澶嶅寘鍚獟浣撶殑娑堟伅")
+            raise FetchError(Messages.DOWNLOAD_REPLY_REQUIRED)
         preferred = kwargs.get("preferred_name")
         attempt = 0
         last_error = None
@@ -330,12 +330,12 @@ class TelegramFetcher(Fetcher):
             target = reply if attempt == 1 else await client.get_messages(reply.chat.id, reply.id)
             media = self._extract_media(target)
             if media is None:
-                raise FetchError("鏈壘鍒板彲涓嬭浇鐨勫獟浣?")
+                raise FetchError(Messages.DOWNLOAD_MEDIA_NOT_FOUND)
             mime_type = getattr(media, "mime_type", None)
             filename = preferred or getattr(media, "file_name", None)
             file_id_str = getattr(media, "file_id", None)
             if not file_id_str:
-                raise FetchError("鏃犳硶鑾峰彇鏂囦欢鏍囪瘑")
+                raise FetchError(Messages.DOWNLOAD_FILE_ID_MISSING)
             file_id_obj = FileId.decode(file_id_str)
             file_size = getattr(media, "file_size", 0) or 0
             base_name = sanitize_filename(filename or self._default_name(file_id_obj, mime_type))
@@ -350,13 +350,13 @@ class TelegramFetcher(Fetcher):
                 await asyncio.to_thread(os.replace, temp_path, final_path)
                 return FetchResult(str(final_path), final_path.name, final_mime, size)
             except AuthBytesInvalid:
-                last_error = "鏂囦欢寮曠敤宸插け鏁?"
+                last_error = Messages.DOWNLOAD_FILE_REFERENCE_INVALID
                 await asyncio.sleep(1)
                 continue
             except FloodWait as exc:
                 wait_seconds = get_floodwait_seconds(exc)
                 sleep_seconds = wait_seconds if wait_seconds > 0 else 1
-                last_error = f"璇锋眰杩囦簬棰戠箒锛岃 {sleep_seconds} 绉掑悗閲嶈瘯"
+                last_error = Messages.DOWNLOAD_TOO_MANY_REQUESTS.format(sleep_seconds)
                 await asyncio.sleep(sleep_seconds + (1 if wait_seconds > 0 else 0))
                 continue
             except RPCError as exc:
@@ -364,12 +364,12 @@ class TelegramFetcher(Fetcher):
                 await asyncio.sleep(1)
                 continue
             except FetchError as exc:
-                if str(exc) == "鏂囦欢澶у皬瓒呭嚭闄愬埗":
+                if str(exc) == Messages.DOWNLOAD_FILE_TOO_LARGE:
                     raise
                 last_error = str(exc)
                 await asyncio.sleep(1)
                 continue
-        raise FetchError(last_error or "涓嬭浇澶辫触")
+        raise FetchError(last_error or Messages.DOWNLOAD_GENERIC_ERROR)
 
     def _extract_media(self, message) -> Optional[object]:
         for attr in ("document", "video", "audio", "voice", "photo", "animation", "video_note", "sticker"):
@@ -384,7 +384,7 @@ class TelegramFetcher(Fetcher):
 
     async def _prepare_temp(self, path: Optional[Path], file_size: int) -> int:
         if path is None:
-            raise FetchError("鍐呴儴閿欒")
+            raise FetchError(Messages.DOWNLOAD_INTERNAL_ERROR)
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
             return 0
@@ -405,7 +405,7 @@ class TelegramFetcher(Fetcher):
 
     async def _download_chunks(self, client: Client, file_id: FileId, file_size: int, path: Optional[Path], offset: int, downloaded: int) -> int:
         if path is None:
-            raise FetchError("鍐呴儴閿欒")
+            raise FetchError(Messages.DOWNLOAD_INTERNAL_ERROR)
         async with aiofiles.open(path, "ab") as handle:
             async for data in client.get_file(
                 file_id,
@@ -419,19 +419,19 @@ class TelegramFetcher(Fetcher):
                     continue
                 downloaded += len(data)
                 if downloaded > self.max_size:
-                    raise FetchError("鏂囦欢澶у皬瓒呭嚭闄愬埗")
+                    raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
                 await handle.write(data)
         size = os.path.getsize(path)
         if size > self.max_size:
-            raise FetchError("鏂囦欢澶у皬瓒呭嚭闄愬埗")
+            raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
         return size
 
     @staticmethod
     async def _progress_checker(current: int, total: int, limit: int) -> None:
         if total and total > limit:
-            raise FetchError("鏂囦欢澶у皬瓒呭嚭闄愬埗")
+            raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
         if current > limit:
-            raise FetchError("鏂囦欢澶у皬瓒呭嚭闄愬埗")
+            raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
 
 
 class YtDlpFetcher(Fetcher):
@@ -443,7 +443,7 @@ class YtDlpFetcher(Fetcher):
     async def fetch(self, client: Client, message, **kwargs) -> FetchResult:
         url = kwargs.get("url")
         if not url:
-            raise FetchError("缂哄皯涓嬭浇閾炬帴")
+            raise FetchError(Messages.DOWNLOAD_MISSING_URL)
         async with self._semaphore:
             temp_dir = Path(tempfile.mkdtemp(dir=self.directory))
             loop = asyncio.get_running_loop()
@@ -451,13 +451,13 @@ class YtDlpFetcher(Fetcher):
                 info = await loop.run_in_executor(None, lambda: self._extract_info(url, temp_dir))
                 estimate = info.get("filesize") or info.get("filesize_approx")
                 if estimate and estimate > self.max_size:
-                    raise FetchError("鏂囦欢澶у皬瓒呭嚭闄愬埗")
+                    raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
                 path = await loop.run_in_executor(None, lambda: self._download(url, temp_dir))
                 if not path or not os.path.exists(path):
-                    raise FetchError("涓嬭浇澶辫触")
+                    raise FetchError(Messages.DOWNLOAD_GENERIC_ERROR)
                 size = os.path.getsize(path)
                 if size > self.max_size:
-                    raise FetchError("鏂囦欢澶у皬瓒呭嚭闄愬埗")
+                    raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
                 final_name = sanitize_filename(os.path.basename(path))
                 final_path = unique_path(self.directory, final_name)
                 await asyncio.to_thread(os.replace, path, final_path)
@@ -517,7 +517,7 @@ def _parse_url_argument(message) -> tuple[Optional[str], Optional[str]]:
 
 async def _handle_fetch(client: Client, message, fetcher: Fetcher, *, url: Optional[str] = None, preferred_name: Optional[str] = None) -> None:
     helper = GoogleDriveHelper(message.from_user.id)
-    status = await client.send_message(message.chat.id, "馃摜 姝ｅ湪鍑嗗涓嬭浇...", reply_to_message_id=message.id)
+    status = await client.send_message(message.chat.id, Messages.DOWNLOAD_PREPARING, reply_to_message_id=message.id)
     result = None
     try:
         result = await fetcher.fetch(client, message, url=url, preferred_name=preferred_name)
@@ -525,11 +525,11 @@ async def _handle_fetch(client: Client, message, fetcher: Fetcher, *, url: Optio
         upload_result = await helper.upload(result.path, result.mime_type)
         await client.edit_message_text(message.chat.id, status.id, upload_result)
     except FetchError as exc:
-        await client.edit_message_text(message.chat.id, status.id, f"鉂?{exc}")
+        await client.edit_message_text(message.chat.id, status.id, Messages.DOWNLOAD_FAILED.format(exc))
     except DriveAccessError as exc:
         await client.edit_message_text(message.chat.id, status.id, drive_error_message(exc.code))
     except Exception as exc:
-        await client.edit_message_text(message.chat.id, status.id, f"鉂?{exc}")
+        await client.edit_message_text(message.chat.id, status.id, Messages.DOWNLOAD_FAILED.format(exc))
     finally:
         if result and os.path.exists(result.path):
             with contextlib.suppress(Exception):
