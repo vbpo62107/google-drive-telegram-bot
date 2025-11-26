@@ -572,7 +572,3 @@ async def ytdl_handler(client, message):
         return
     fetcher = YtDlpFetcher(DOWNLOAD_PATH, MAX_MIRROR_FILE_SIZE)
     await _handle_fetch(client, message, fetcher, url=url)
-
-
-
-
