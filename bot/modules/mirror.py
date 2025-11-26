@@ -4,8 +4,9 @@ import re
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot import LOGGER, SUDO_USERS
+from bot import DEFAULT_AUTH_MODE, LOGGER, SUDO_USERS
 from bot.config import Messages
+from bot.helpers.gdrive_utils.credentials_manager import credential_manager
 from bot.helpers.sql_helper import gDriveDB
 from bot.helpers.sql_helper.mirror_tasks import MirrorTask, MirrorTaskStatus
 from bot.helpers.sql_helper import get_session
@@ -41,17 +42,19 @@ def _initial_keyboard(task_id: int) -> InlineKeyboardMarkup:
 @Client.on_message(filters.command("mirror") & filters.private)
 async def mirror_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
-        await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
+        await client.send_message(message.chat.id, Messages.MIRROR_NO_PERMISSION)
         return
     if not message.text or len(message.text.split(maxsplit=1)) < 2:
-        await client.send_message(message.chat.id, "⚠️ 请提供直链 URL.")
+        await client.send_message(message.chat.id, Messages.MIRROR_PROVIDE_URL)
         return
     url = message.text.split(maxsplit=1)[1].strip()
     if not re.match(r"^https?://", url, re.I):
-        await client.send_message(message.chat.id, "⚠️ 仅支持 HTTP(S) 链接.")
+        await client.send_message(message.chat.id, Messages.MIRROR_UNSUPPORTED_PROTOCOL)
         return
     try:
         authorized = gDriveDB.is_authorized(message.from_user.id)
+        if not authorized and DEFAULT_AUTH_MODE == "service_account":
+            authorized = credential_manager.service_account_available()
     except Exception as exc:
         LOGGER.error("Mirror auth check failed for user %s: %s", message.from_user.id, exc)
         await client.send_message(message.chat.id, Messages.DB_ERROR)

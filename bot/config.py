@@ -159,7 +159,10 @@ class Messages:
         f"__可以直接发送可下载链接，或使用__ `/{BotCommands.Download[0]} 链接 | 自定义文件名` __指定文件名.__\n"
         f"__若要处理电报媒体，请回复目标消息并发送__ `/{BotCommands.Download[0]}` __，同样支持通过 `|` 指定文件名.__"
     )
-    
+    MIRROR_NO_PERMISSION = "⚠️ 您没有权限使用此命令."
+    MIRROR_PROVIDE_URL = "⚠️ 请提供直链 URL."
+    MIRROR_UNSUPPORTED_PROTOCOL = "⚠️ 仅支持 HTTP(S) 链接."
+
     INSUFFICIENT_PERMISSONS = "❗ **您对此文件的权限不足.**\n__File id - {}__"
     
     DELETED_SUCCESSFULLY = "🗑️✅ **文件删除成功.**\n__档案已永久删除 !\nFile id - {}__"
