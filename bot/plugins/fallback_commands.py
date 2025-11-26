@@ -25,9 +25,6 @@ AUTH_REQUIRED = set(
     )
 )
 
-YTDL_ALIASES = set(BotCommands.YtDl)
-DOWNLOAD_ALIASES = set(BotCommands.Download)
-
 SUDO_REQUIRED = set(chain(AUTH_REQUIRED, ["log", "restart"]))
 ALL_KNOWN_COMMANDS = set(chain(AUTH_REQUIRED, {"start", "help"}))
 
@@ -36,6 +33,8 @@ ALL_KNOWN_COMMANDS = set(chain(AUTH_REQUIRED, {"start", "help"}))
 async def _fallback_commands(client, message):
     """
     Fallback: if no handler responds, give a clear hint instead of silence.
+    注意：`/ytdl` 与 `/download` 等高权限命令的特殊处理已明确取消，
+    这里只提供统一的兜底提示，具体业务逻辑应由对应的插件处理。
     """
     raw = (message.text or "").split()[0]
     command = raw.split("@", 1)[0].lstrip("/").lower()
