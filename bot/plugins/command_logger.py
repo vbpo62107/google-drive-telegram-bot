@@ -5,6 +5,11 @@ from pyrogram import Client, ContinuePropagation, filters
 from bot import LOGGER
 from bot.config import BotCommands
 
+LOGGER.info("-" * 40)
+LOGGER.info("Loading command_logger plugin")
+LOGGER.info("BotCommands.YtDl=%s", BotCommands.YtDl)
+LOGGER.info("BotCommands.Download=%s", BotCommands.Download)
+
 COMMAND_ALIASES = list(
     chain(
         BotCommands.Clone,
@@ -21,6 +26,10 @@ COMMAND_ALIASES = list(
     )
 )
 
+LOGGER.info("COMMAND_ALIASES=%s", COMMAND_ALIASES)
+LOGGER.info("COMMAND_ALIASES length=%d", len(COMMAND_ALIASES))
+LOGGER.info("COMMAND_ALIASES contains 'ytdl'? %s", "ytdl" in COMMAND_ALIASES)
+
 
 def _normalize_command(message):
     if hasattr(message, "command") and message.command:
@@ -34,6 +43,7 @@ def _normalize_command(message):
 @Client.on_message(filters.incoming & filters.command(COMMAND_ALIASES), group=0)
 async def _command_logger(client, message):
     command = _normalize_command(message)
+    LOGGER.info("_command_logger TRIGGERED!")
     LOGGER.info(
         "Command hit user=%s chat=%s type=%s cmd=%s text=%r",
         getattr(message.from_user, "id", None),
