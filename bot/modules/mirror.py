@@ -69,8 +69,24 @@ async def mirror_handler(client, message):
         )
         await task_manager.update_message_id(runner.id, sent.id)
         await _update_stage(runner.id, "排队中")
+    except PermissionError as exc:
+        LOGGER.exception("Mirror task submission permission error for user %s", message.from_user.id)
+        await client.send_message(
+            message.chat.id,
+            Messages.MIRROR_SUBMIT_FAILED.format(Messages.MIRROR_SUBMIT_PERMISSION_TIP, exc),
+        )
+    except (ConnectionError, asyncio.TimeoutError) as exc:
+        LOGGER.exception("Mirror task submission network error for user %s", message.from_user.id)
+        await client.send_message(
+            message.chat.id,
+            Messages.MIRROR_SUBMIT_FAILED.format(Messages.MIRROR_SUBMIT_NETWORK_TIP, exc),
+        )
     except Exception as exc:
-        await client.send_message(message.chat.id, f"⚠️ {exc}")
+        LOGGER.exception("Mirror task submission failed for user %s", message.from_user.id)
+        await client.send_message(
+            message.chat.id,
+            Messages.MIRROR_SUBMIT_FAILED.format(Messages.MIRROR_SUBMIT_RETRY_TIP, exc),
+        )
 
 
 @Client.on_callback_query(filters.regex(r"^mirror:(\d+):(pause|resume|cancel)$"))
