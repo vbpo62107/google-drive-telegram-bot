@@ -29,6 +29,8 @@ from bot.helpers.utils import humanbytes, get_floodwait_seconds
 from bot.modules.drive_helper import DriveAccessError, drive_error_message
 from bot.modules.gdriveTools import GoogleDriveHelper
 
+LOGGER.info("download_manager module loaded, registering handlers...")
+
 ALLOWED_CONTENT_PREFIXES = ("application/", "audio/", "video/", "image/", "text/plain")
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 YT_DLP_CONCURRENCY = 2
