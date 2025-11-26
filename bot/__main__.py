@@ -42,10 +42,13 @@ def _import_modules() -> None:
     @Client.on_message decorators are registered even when the
     plugin loader is not used.
     """
+    LOGGER.info("Importing %d modules", len(MODULE_NAMES))
     for name in MODULE_NAMES:
         import_path = f"bot.modules.{name}"
+        LOGGER.info("Importing module %s", import_path)
         try:
             import_module(import_path)
+            LOGGER.info("Successfully imported module %s", import_path)
         except Exception:  # pragma: no cover - fail fast on import errors
             LOGGER.exception("Failed to import module %s", import_path)
             raise
