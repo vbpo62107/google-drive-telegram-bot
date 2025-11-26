@@ -1,6 +1,6 @@
 from itertools import chain
 
-from pyrogram import Client, filters
+from pyrogram import Client, ContinuePropagation, filters
 
 from bot import LOGGER
 from bot.config import BotCommands
@@ -42,6 +42,7 @@ async def _command_logger(client, message):
         command,
         message.text,
     )
+    raise ContinuePropagation
 
 
 @Client.on_message(filters.incoming, group=1)
