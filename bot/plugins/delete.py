@@ -12,7 +12,7 @@ from bot.modules.drive_helper import (
 )
 
 
-@Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Delete) & CustomFilters.auth_users)
+# @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Delete) & CustomFilters.auth_users)
 async def _delete(client, message):
     user = message.from_user
     if user is None or user.id not in SUDO_USERS:
@@ -43,7 +43,7 @@ async def _delete(client, message):
     await sent_message.edit(result)
 
 
-@Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.EmptyTrash) & CustomFilters.auth_users)
+# @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.EmptyTrash) & CustomFilters.auth_users)
 async def _emptyTrash(client, message):
     user = message.from_user
     if user is None or user.id not in SUDO_USERS:
@@ -61,3 +61,7 @@ async def _emptyTrash(client, message):
         return
     msg = await asyncio.to_thread(drive.emptyTrash)
     await message.reply_text(msg, quote=True)
+
+
+delete_handler = _delete
+emptytrash_handler = _emptyTrash

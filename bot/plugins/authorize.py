@@ -69,7 +69,7 @@ def _parse_code(text: str) -> tuple[Optional[str], Optional[str]]:
 pending_flows: Dict[int, PendingFlow] = {}
 
 
-@Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Authorize))
+# @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Authorize))
 async def _auth(client, message):
     user_id = message.from_user.id
     text = message.text or ""
@@ -112,7 +112,7 @@ async def _auth(client, message):
             await message.reply_text(str(exc), quote=True, parse_mode=ParseMode.MARKDOWN)
 
 
-@Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Revoke) & CustomFilters.auth_users)
+# @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Revoke) & CustomFilters.auth_users)
 async def _revoke(client, message):
     user_id = message.from_user.id
     try:
@@ -125,7 +125,7 @@ async def _revoke(client, message):
         await message.reply_text(f"**ERROR:** ```{exc}```", quote=True, parse_mode=ParseMode.MARKDOWN)
 
 
-@Client.on_message(filters.private & filters.incoming & filters.text)
+# @Client.on_message(filters.private & filters.incoming & filters.text)
 async def _token(client, message):
     user_id = message.from_user.id
     entry = pending_flows.get(user_id)
@@ -161,3 +161,8 @@ async def _token(client, message):
         await sent_message.edit(Messages.INVALID_AUTH_CODE)
     finally:
         pending_flows.pop(user_id, None)
+
+
+auth_handler = _auth
+revoke_handler = _revoke
+token_handler = _token

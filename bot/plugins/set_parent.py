@@ -14,7 +14,7 @@ from bot.modules.drive_helper import (
 )
 
 
-@Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.SetFolder) & CustomFilters.auth_users)
+# @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.SetFolder) & CustomFilters.auth_users)
 async def _set_parent(client, message):
     user_id = message.from_user.id
     if len(message.command) <= 1:
@@ -49,3 +49,6 @@ async def _set_parent(client, message):
             await sent_message.edit(file_id)
     except IndexError:
         await sent_message.edit(Messages.INVALID_GDRIVE_URL)
+
+
+setfolder_handler = _set_parent
