@@ -196,21 +196,30 @@ class GoogleDrive:
                         LOGGER.warning(
                             "Detected MediaFileUpload.chunksize API issue, applying workaround..."
                         )
-                        # Fix the chunksize attribute
                         media = getattr(request, "media_body", None)
                         if media and hasattr(media, "_chunksize"):
-                            # Ensure _chunksize is an integer
-                            if isinstance(media._chunksize, int):
-                                LOGGER.info(
-                                    "MediaFileUpload._chunksize is already int: %d", media._chunksize
-                                )
-                            else:
+                            # Ensure _chunksize is int
+                            if not isinstance(media._chunksize, int):
                                 LOGGER.warning(
                                     "Converting MediaFileUpload._chunksize from %s to int",
                                     type(media._chunksize).__name__,
                                 )
                                 media._chunksize = int(media._chunksize)
-                        # Retry the operation
+                            else:
+                                LOGGER.info(
+                                    "MediaFileUpload._chunksize is already int: %d", media._chunksize
+                                )
+
+                            # Compatibility fix: Make .chunksize a callable lambda
+                            if hasattr(media, "chunksize") and not callable(media.chunksize):
+                                LOGGER.warning(
+                                    "Fixing media.chunksize from int (%d) to lambda returning int.",
+                                    media.chunksize,
+                                )
+                                media.chunksize = lambda: media._chunksize
+
+                            LOGGER.info("Chunksize workaround applied, retrying next_chunk()...")
+                        # Retry the operation after patching
                         status, response = request.next_chunk()
                     else:
                         raise
