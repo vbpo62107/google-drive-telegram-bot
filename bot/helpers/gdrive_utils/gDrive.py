@@ -444,8 +444,21 @@ class GoogleDrive:
                     resumable=True,
                 )
                 LOGGER.info("BytesIO media_body created successfully")
+
+                # Critical fix: Monkey patch chunksize to be callable
+                if hasattr(media_body, "_chunksize"):
+                    original_chunksize = media_body._chunksize
+                    LOGGER.info(
+                        "Patching media_body._chunksize=%d to callable", original_chunksize
+                    )
+                    media_body._chunksize = original_chunksize
+                    media_body.chunksize = lambda: original_chunksize
+                    LOGGER.info("Chunksize patched successfully")
+
             except Exception as e:
-                LOGGER.error("BytesIO upload failed, falling back: %s", str(e))
+                LOGGER.error(
+                    "BytesIO upload failed, falling back: %s", str(e), exc_info=True
+                )
                 media_body = MediaFileUpload(
                     file_path,
                     mimetype=mime_type,
