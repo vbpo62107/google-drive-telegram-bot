@@ -553,22 +553,35 @@ async def _handle_fetch(
 
         # 开始上传
         LOGGER.info(
-            "Starting upload: user=%s, file=%s, mime_type=%s",
+            "Starting upload: user=%s, file=%s, mime_type=%s, path=%s",
             user_id,
             result.name,
             result.mime_type,
+            result.path,
         )
         upload_result = await helper.upload(result.path, result.mime_type)
+
+        # 记录上传结果的类型和内容
         LOGGER.info(
-            "Upload completed: user=%s, file=%s, result=%s",
+            "Upload completed: user=%s, file=%s, result_type=%s, result_value=%r",
             user_id,
             result.name,
+            type(upload_result).__name__,
             upload_result,
         )
 
-        # 发送上传成功消息
+        # 类型检查：确保 upload_result 是字符串
+        if not isinstance(upload_result, str):
+            LOGGER.warning(
+                "Upload result is not string: user=%s, expected=str, got=%s, value=%r. Converting...",
+                user_id,
+                type(upload_result).__name__,
+                upload_result,
+            )
+            upload_result = str(upload_result)
+
+        # 发送上传成功消息给用户
         await client.edit_message_text(message.chat.id, status.id, upload_result)
-        LOGGER.info("Success message sent: user=%s, file=%s", user_id, result.name)
 
     except FetchError as exc:
         error_msg = Messages.DOWNLOAD_FAILED.format(str(exc))
