@@ -468,6 +468,17 @@ class GoogleDrive:
                 supportsAllDrives=True,
             )
 
+            # Patch request.resumable.chunksize to be callable
+            if hasattr(request, "resumable") and request.resumable:
+                resumable = request.resumable
+                if hasattr(resumable, "chunksize") and not callable(resumable.chunksize):
+                    original_size = resumable.chunksize
+                    LOGGER.info(
+                        "Patching request.resumable.chunksize=%d to callable", original_size
+                    )
+                    resumable.chunksize = lambda: original_size
+                    LOGGER.info("request.resumable.chunksize patched successfully")
+
             def perform():
                 return self._perform_chunked_upload(request, controller)
 
