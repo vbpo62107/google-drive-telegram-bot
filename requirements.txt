@@ -1,6 +1,6 @@
 pyrogram
 TgCrypto
-google-api-python-client
+google-api-python-client>=2.187.0
 google-auth-httplib2
 google-auth-oauthlib
 httplib2
