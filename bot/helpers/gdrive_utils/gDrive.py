@@ -509,21 +509,25 @@ class GoogleDrive:
         except RetryError as err:
             LOGGER.info("Total Attempts: %s", err.last_attempt.attempt_number)
             error = err.last_attempt.exception()
+            LOGGER.error("RetryError occurred: %s", str(error), exc_info=True)
             if isinstance(error, HttpError) and error.resp.get("content-type", "").startswith("application/json"):
                 reason = json.loads(error.content).get("error", {}).get("errors", [{}])[0].get("reason")
                 if reason in {"userRateLimitExceeded", "dailyLimitExceeded"}:
                     return Messages.RATE_LIMIT_EXCEEDED_MESSAGE
                 return f"**ERROR:** {reason}"
-            return f"**ERROR:** ```{str(error).replace('>', '').replace('<', '')}```"
+            return f"**ERROR:** ``````"
         except HttpError as err:
+            LOGGER.error("HttpError occurred: %s", str(err), exc_info=True)
             if err.resp.get("content-type", "").startswith("application/json"):
                 reason = json.loads(err.content).get("error", {}).get("errors", [{}])[0].get("reason")
                 if reason in {"userRateLimitExceeded", "dailyLimitExceeded"}:
                     return Messages.RATE_LIMIT_EXCEEDED_MESSAGE
                 return f"**ERROR:** {reason}"
-            return f"**ERROR:** ```{str(err).replace('>', '').replace('<', '')}```"
+            return f"**ERROR:** ``````"
         except Exception as e:
-            return f"**ERROR:** ```{e}```"
+            LOGGER.error("Unexpected exception in upload_file_with_progress: %s", str(e), exc_info=True)
+            LOGGER.error("Exception type: %s, Exception message: %s", type(e).__name__, str(e))
+            return f"**ERROR:** ``````"
         finally:
             self._finish_upload_session()
 
