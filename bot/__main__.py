@@ -100,6 +100,36 @@ if __name__ == "__main__":
         plugins=plugins,
         parse_mode=ParseMode.MARKDOWN,
     )
+    # 手动注册命令处理器（确保可靠性）
+    from pyrogram import filters
+    from pyrogram.handlers import MessageHandler
+    from bot.modules.download_manager import ytdl_handler, download_handler
+
+    LOGGER.info("=" * 60)
+    LOGGER.info("Registering command handlers manually...")
+
+    # 注册 ytdl_handler
+    app.add_handler(
+        MessageHandler(
+            ytdl_handler,
+            filters.private & filters.command(["ytdl"]),
+        ),
+        group=-1
+    )
+    LOGGER.info("✅ ytdl_handler registered")
+
+    # 注册 download_handler
+    app.add_handler(
+        MessageHandler(
+            download_handler,
+            filters.private & filters.command(["download", "dl"]),
+        ),
+        group=-1
+    )
+    LOGGER.info("✅ download_handler registered")
+
+    LOGGER.info("All handlers registered successfully")
+    LOGGER.info("=" * 60)
     LOGGER.info("Starting bot...")
     app.run()
     LOGGER.info("Bot stopped.")
