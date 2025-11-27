@@ -559,7 +559,19 @@ async def _handle_fetch(
             result.mime_type,
             result.path,
         )
-        upload_result = await helper.upload(result.path, result.mime_type)
+        try:
+            upload_result = await helper.upload(result.path, result.mime_type)
+        except Exception as upload_exc:
+            error_msg = Messages.DOWNLOAD_FAILED.format(str(upload_exc))
+            LOGGER.error(
+                "Upload exception occurred: user=%s, file=%s, exception=%s",
+                user_id,
+                result.name,
+                str(upload_exc),
+                exc_info=True,
+            )
+            await client.edit_message_text(message.chat.id, status.id, error_msg)
+            raise
 
         # 记录上传结果的类型和内容
         LOGGER.info(
@@ -573,15 +585,36 @@ async def _handle_fetch(
         # 类型检查：确保 upload_result 是字符串
         if not isinstance(upload_result, str):
             LOGGER.warning(
-                "Upload result is not string: user=%s, expected=str, got=%s, value=%r. Converting...",
+                "Upload result is not string: user=%s, expected=str, got=%s, value=%r. Converting to string...",
                 user_id,
                 type(upload_result).__name__,
                 upload_result,
             )
             upload_result = str(upload_result)
 
-        # 发送上传成功消息给用户
-        await client.edit_message_text(message.chat.id, status.id, upload_result)
+        # 检查返回字符串是否包含错误信息
+        if "ERROR" in upload_result or "error" in upload_result.lower():
+            LOGGER.error(
+                "Upload returned error message: user=%s, file=%s, error_message=%s",
+                user_id,
+                result.name,
+                upload_result,
+            )
+            await client.edit_message_text(message.chat.id, status.id, upload_result)
+            LOGGER.info(
+                "Error message sent to user: user=%s, file=%s",
+                user_id,
+                result.name,
+            )
+        else:
+            # 上传成功，发送成功消息给用户
+            await client.edit_message_text(message.chat.id, status.id, upload_result)
+            LOGGER.info(
+                "Success message sent to user: user=%s, file=%s, message_length=%d",
+                user_id,
+                result.name,
+                len(upload_result),
+            )
 
     except FetchError as exc:
         error_msg = Messages.DOWNLOAD_FAILED.format(str(exc))
