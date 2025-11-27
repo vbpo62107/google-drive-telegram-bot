@@ -475,9 +475,23 @@ class GoogleDrive:
                 cancel_callback=cancel_callback,
             )
 
+        def wrapped_call():
+            """包装 _call 以确保返回值正确"""
+            result = self._call(perform)
+            if not isinstance(result, dict):
+                LOGGER.warning(
+                    "_call returned non-dict: type=%s, value=%r",
+                    type(result).__name__,
+                    result,
+                )
+                raise RuntimeError(
+                    f"Invalid upload response: expected dict, got {type(result).__name__}"
+                )
+            return result
+
         async def run_upload():
             try:
-                return await loop.run_in_executor(None, lambda: self._call(perform))
+                return await loop.run_in_executor(None, wrapped_call)
             except Exception as exc:
                 raise exc
 
