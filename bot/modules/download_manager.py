@@ -517,25 +517,87 @@ def _parse_url_argument(message) -> tuple[Optional[str], Optional[str]]:
     return payload, None
 
 
-async def _handle_fetch(client: Client, message, fetcher: Fetcher, *, url: Optional[str] = None, preferred_name: Optional[str] = None) -> None:
-    helper = GoogleDriveHelper(message.from_user.id)
-    status = await client.send_message(message.chat.id, Messages.DOWNLOAD_PREPARING, reply_to_message_id=message.id)
+async def _handle_fetch(
+    client: Client,
+    message,
+    fetcher: Fetcher,
+    *,
+    url: Optional[str] = None,
+    preferred_name: Optional[str] = None,
+) -> None:
+    """Handle file fetching, uploading, and user feedback."""
+    user_id = getattr(message.from_user, "id", None)
+    helper = GoogleDriveHelper(user_id)
+    status = await client.send_message(
+        message.chat.id, Messages.DOWNLOAD_PREPARING, reply_to_message_id=message.id
+    )
     result = None
+
     try:
+        # 开始下载
+        LOGGER.info("Starting fetch: user=%s, fetcher=%s", user_id, type(fetcher).__name__)
         result = await fetcher.fetch(client, message, url=url, preferred_name=preferred_name)
-        await client.edit_message_text(message.chat.id, status.id, Messages.DOWNLOADED_SUCCESSFULLY.format(result.name, humanbytes(result.size)))
+        LOGGER.info(
+            "Fetch completed: user=%s, file=%s, size=%d bytes",
+            user_id,
+            result.name,
+            result.size,
+        )
+
+        # 发送下载完成消息
+        await client.edit_message_text(
+            message.chat.id,
+            status.id,
+            Messages.DOWNLOADED_SUCCESSFULLY.format(result.name, humanbytes(result.size)),
+        )
+
+        # 开始上传
+        LOGGER.info(
+            "Starting upload: user=%s, file=%s, mime_type=%s",
+            user_id,
+            result.name,
+            result.mime_type,
+        )
         upload_result = await helper.upload(result.path, result.mime_type)
+        LOGGER.info(
+            "Upload completed: user=%s, file=%s, result=%s",
+            user_id,
+            result.name,
+            upload_result,
+        )
+
+        # 发送上传成功消息
         await client.edit_message_text(message.chat.id, status.id, upload_result)
+        LOGGER.info("Success message sent: user=%s, file=%s", user_id, result.name)
+
     except FetchError as exc:
-        await client.edit_message_text(message.chat.id, status.id, Messages.DOWNLOAD_FAILED.format(exc))
+        error_msg = Messages.DOWNLOAD_FAILED.format(str(exc))
+        LOGGER.error("FetchError for user=%s: %s", user_id, str(exc), exc_info=True)
+        await client.edit_message_text(message.chat.id, status.id, error_msg)
+
     except DriveAccessError as exc:
-        await client.edit_message_text(message.chat.id, status.id, drive_error_message(exc.code))
+        error_msg = drive_error_message(exc.code)
+        LOGGER.error(
+            "DriveAccessError for user=%s (code=%s): %s",
+            user_id,
+            exc.code,
+            str(exc),
+            exc_info=True,
+        )
+        await client.edit_message_text(message.chat.id, status.id, error_msg)
+
     except Exception as exc:
-        await client.edit_message_text(message.chat.id, status.id, Messages.DOWNLOAD_FAILED.format(exc))
+        error_msg = Messages.DOWNLOAD_FAILED.format(str(exc))
+        LOGGER.exception("Unexpected error for user=%s: %s", user_id, str(exc))
+        await client.edit_message_text(message.chat.id, status.id, error_msg)
+
     finally:
+        # 清理临时文件
         if result and os.path.exists(result.path):
+            LOGGER.info("Cleaning up temporary file: %s", result.path)
             with contextlib.suppress(Exception):
                 os.remove(result.path)
+            LOGGER.info("Temporary file removed: %s", result.path)
 
 
 @Client.on_message(filters.private & filters.command(["download", "dl"]), group=-1)
