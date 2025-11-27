@@ -114,6 +114,11 @@ if __name__ == "__main__":
     from bot.modules.auth_mode import auth_mode_handler
     from bot.modules.search_drive import search_drive_handler
     from bot.modules.list_drive import list_drive_handler
+    # 添加 plugins 中的处理器
+    from bot.plugins.clone import clone_handler
+    from bot.plugins.delete import delete_handler, emptytrash_handler
+    from bot.plugins.set_parent import setfolder_handler
+    from bot.plugins.authorize import auth_handler, revoke_handler
 
     LOGGER.info("="*60)
     LOGGER.info("Registering all command handlers manually...")
@@ -183,6 +188,66 @@ if __name__ == "__main__":
         group=-1
     )
     LOGGER.info("✅ delete_monitor_handler registered")
+
+    # Plugins handlers - Clone/Copy
+    app.add_handler(
+        MessageHandler(
+            clone_handler,
+            filters.private & filters.command(["clone", "copy"]),
+        ),
+        group=-1
+    )
+    LOGGER.info("✅ clone_handler registered")
+
+    # Plugins handlers - Delete
+    app.add_handler(
+        MessageHandler(
+            delete_handler,
+            filters.private & filters.command(["delete", "del"]),
+        ),
+        group=-1
+    )
+    LOGGER.info("✅ delete_handler registered")
+
+    # Plugins handlers - EmptyTrash
+    app.add_handler(
+        MessageHandler(
+            emptytrash_handler,
+            filters.private & filters.command(["emptytrash", "emptyTrash"]),
+        ),
+        group=-1
+    )
+    LOGGER.info("✅ emptytrash_handler registered")
+
+    # Plugins handlers - SetFolder
+    app.add_handler(
+        MessageHandler(
+            setfolder_handler,
+            filters.private & filters.command(["setfolder", "setfl"]),
+        ),
+        group=-1
+    )
+    LOGGER.info("✅ setfolder_handler registered")
+
+    # Plugins handlers - Authorize
+    app.add_handler(
+        MessageHandler(
+            auth_handler,
+            filters.private & filters.command(["auth", "authorize"]),
+        ),
+        group=-1
+    )
+    LOGGER.info("✅ auth_handler registered")
+
+    # Plugins handlers - Revoke
+    app.add_handler(
+        MessageHandler(
+            revoke_handler,
+            filters.private & filters.command(["revoke"]),
+        ),
+        group=-1
+    )
+    LOGGER.info("✅ revoke_handler registered")
 
     LOGGER.info("All command handlers registered successfully")
     LOGGER.info("="*60)
