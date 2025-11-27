@@ -125,7 +125,7 @@ def _chunk_messages(header, cont_header, entries):
     return [chunk for chunk in chunks if chunk.strip()]
 
 
-@Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.ListDrive))
+# @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.ListDrive))  # 由 __main__.py 注册
 async def list_drive_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")

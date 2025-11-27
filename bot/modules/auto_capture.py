@@ -170,7 +170,7 @@ def _build_source(message) -> Tuple[str, str]:
     return "", ""
 
 
-@Client.on_message(filters.command("addmonitor") & filters.private)
+# @Client.on_message(filters.command("addmonitor") & filters.private)  # 由 __main__.py 注册
 async def add_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
@@ -190,7 +190,7 @@ async def add_monitor_handler(client, message):
         await client.send_message(message.chat.id, f"⚠️ {exc}")
 
 
-@Client.on_message(filters.command("listmonitor") & filters.private)
+# @Client.on_message(filters.command("listmonitor") & filters.private)  # 由 __main__.py 注册
 async def list_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
@@ -206,7 +206,7 @@ async def list_monitor_handler(client, message):
         await client.send_message(message.chat.id, f"⚠️ {exc}")
 
 
-@Client.on_message(filters.command("togglemonitor") & filters.private)
+# @Client.on_message(filters.command("togglemonitor") & filters.private)  # 由 __main__.py 注册
 async def toggle_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
@@ -225,7 +225,7 @@ async def toggle_monitor_handler(client, message):
         await client.send_message(message.chat.id, f"⚠️ {exc}")
 
 
-@Client.on_message(filters.command("delmonitor") & filters.private)
+# @Client.on_message(filters.command("delmonitor") & filters.private)  # 由 __main__.py 注册
 async def delete_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")

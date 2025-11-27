@@ -7,7 +7,7 @@ from bot.helpers.sql_helper import gDriveDB
 from bot.modules.drive_helper import invalidate_drive_instance
 
 
-@Client.on_message(filters.private & filters.command(BotCommands.AuthMode))
+# @Client.on_message(filters.private & filters.command(BotCommands.AuthMode))  # 由 __main__.py 注册
 async def auth_mode_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
