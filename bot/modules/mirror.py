@@ -39,7 +39,7 @@ def _initial_keyboard(task_id: int) -> InlineKeyboardMarkup:
     )
 
 
-@Client.on_message(filters.command("mirror") & filters.private)
+# @Client.on_message(filters.command("mirror") & filters.private)  # 由 __main__.py 注册
 async def mirror_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, Messages.MIRROR_NO_PERMISSION)

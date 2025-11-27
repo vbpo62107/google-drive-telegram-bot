@@ -100,36 +100,92 @@ if __name__ == "__main__":
         plugins=plugins,
         parse_mode=ParseMode.MARKDOWN,
     )
-    # 手动注册命令处理器（确保可靠性）
+    # 手动注册所有命令处理器（确保可靠性）
     from pyrogram import filters
     from pyrogram.handlers import MessageHandler
     from bot.modules.download_manager import ytdl_handler, download_handler
-
-    LOGGER.info("=" * 60)
-    LOGGER.info("Registering command handlers manually...")
-
-    # 注册 ytdl_handler
-    app.add_handler(
-        MessageHandler(
-            ytdl_handler,
-            filters.private & filters.command(["ytdl"]),
-        ),
-        group=-1
+    from bot.modules.mirror import mirror_handler
+    from bot.modules.auto_capture import (
+        add_monitor_handler,
+        list_monitor_handler,
+        toggle_monitor_handler,
+        delete_monitor_handler,
     )
-    LOGGER.info("✅ ytdl_handler registered")
+    from bot.modules.auth_mode import auth_mode_handler
+    from bot.modules.search_drive import search_drive_handler
+    from bot.modules.list_drive import list_drive_handler
 
-    # 注册 download_handler
+    LOGGER.info("="*60)
+    LOGGER.info("Registering all command handlers manually...")
+
+    # Download & YtDl
     app.add_handler(
-        MessageHandler(
-            download_handler,
-            filters.private & filters.command(["download", "dl"]),
-        ),
+        MessageHandler(download_handler, filters.private & filters.command(["download", "dl"])),
         group=-1
     )
     LOGGER.info("✅ download_handler registered")
 
-    LOGGER.info("All handlers registered successfully")
-    LOGGER.info("=" * 60)
+    app.add_handler(
+        MessageHandler(ytdl_handler, filters.private & filters.command(["ytdl"])),
+        group=-1
+    )
+    LOGGER.info("✅ ytdl_handler registered")
+
+    # Mirror
+    app.add_handler(
+        MessageHandler(mirror_handler, filters.private & filters.command(["mirror"])),
+        group=-1
+    )
+    LOGGER.info("✅ mirror_handler registered")
+
+    # Auth Mode
+    app.add_handler(
+        MessageHandler(auth_mode_handler, filters.private & filters.command(["authmode"])),
+        group=-1
+    )
+    LOGGER.info("✅ auth_mode_handler registered")
+
+    # Search Drive
+    app.add_handler(
+        MessageHandler(search_drive_handler, filters.private & filters.command(["searchdrive", "sdrive"])),
+        group=-1
+    )
+    LOGGER.info("✅ search_drive_handler registered")
+
+    # List Drive
+    app.add_handler(
+        MessageHandler(list_drive_handler, filters.private & filters.command(["listdrive", "lsdrive", "listdriv"])),
+        group=-1
+    )
+    LOGGER.info("✅ list_drive_handler registered")
+
+    # Auto Capture Monitors
+    app.add_handler(
+        MessageHandler(add_monitor_handler, filters.private & filters.command(["addmonitor"])),
+        group=-1
+    )
+    LOGGER.info("✅ add_monitor_handler registered")
+
+    app.add_handler(
+        MessageHandler(list_monitor_handler, filters.private & filters.command(["listmonitor"])),
+        group=-1
+    )
+    LOGGER.info("✅ list_monitor_handler registered")
+
+    app.add_handler(
+        MessageHandler(toggle_monitor_handler, filters.private & filters.command(["togglemonitor"])),
+        group=-1
+    )
+    LOGGER.info("✅ toggle_monitor_handler registered")
+
+    app.add_handler(
+        MessageHandler(delete_monitor_handler, filters.private & filters.command(["delmonitor"])),
+        group=-1
+    )
+    LOGGER.info("✅ delete_monitor_handler registered")
+
+    LOGGER.info("All command handlers registered successfully")
+    LOGGER.info("="*60)
     LOGGER.info("Starting bot...")
     app.run()
     LOGGER.info("Bot stopped.")
