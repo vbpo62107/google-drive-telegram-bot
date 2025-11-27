@@ -186,6 +186,21 @@ class GoogleDrive:
             if cancel_callback and cancel_callback():
                 raise RuntimeError("cancelled")
             self._wait_if_paused(pause_event, cancel_callback)
+
+            # Proactive patch: Fix request.resumable.chunksize before calling next_chunk
+            if hasattr(request, "resumable"):
+                resumable = getattr(request, "resumable", None)
+                if resumable and hasattr(resumable, "chunksize") and not callable(
+                    resumable.chunksize
+                ):
+                    original_size = resumable.chunksize
+                    LOGGER.warning(
+                        "Proactive patch: request.resumable.chunksize=%d is not callable, fixing...",
+                        original_size,
+                    )
+                    resumable.chunksize = lambda: original_size
+                    LOGGER.info("request.resumable.chunksize patched to callable")
+
             try:
                 # Workaround for google-api-python-client MediaFileUpload chunksize issue
                 # The issue: MediaFileUpload.chunksize is set as an int instead of callable
