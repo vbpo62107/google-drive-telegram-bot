@@ -186,7 +186,34 @@ class GoogleDrive:
                 raise RuntimeError("cancelled")
             self._wait_if_paused(pause_event, cancel_callback)
             try:
-                status, response = request.next_chunk()
+                # Workaround for google-api-python-client MediaFileUpload chunksize issue
+                # The issue: MediaFileUpload.chunksize is set as an int instead of callable
+                # Reference: https://github.com/googleapis/google-api-python-client/issues/1825
+                try:
+                    status, response = request.next_chunk()
+                except TypeError as te:
+                    if "'int' object is not callable" in str(te) and "chunksize" in str(te):
+                        LOGGER.warning(
+                            "Detected MediaFileUpload.chunksize API issue, applying workaround..."
+                        )
+                        # Fix the chunksize attribute
+                        media = getattr(request, "media_body", None)
+                        if media and hasattr(media, "_chunksize"):
+                            # Ensure _chunksize is an integer
+                            if isinstance(media._chunksize, int):
+                                LOGGER.info(
+                                    "MediaFileUpload._chunksize is already int: %d", media._chunksize
+                                )
+                            else:
+                                LOGGER.warning(
+                                    "Converting MediaFileUpload._chunksize from %s to int",
+                                    type(media._chunksize).__name__,
+                                )
+                                media._chunksize = int(media._chunksize)
+                        # Retry the operation
+                        status, response = request.next_chunk()
+                    else:
+                        raise
                 controller.record_success()
                 if cancel_callback and cancel_callback():
                     raise RuntimeError("cancelled")
