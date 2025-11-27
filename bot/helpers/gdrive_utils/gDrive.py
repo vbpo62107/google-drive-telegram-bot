@@ -7,6 +7,7 @@ import re
 import threading
 import time
 import urllib.parse as urlparse
+from io import BytesIO
 from mimetypes import guess_type
 from typing import Any, Callable, Optional
 from urllib.parse import parse_qs
@@ -14,7 +15,7 @@ from urllib.parse import parse_qs
 from google.auth.exceptions import RefreshError, TransportError
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
 from tenacity import RetryError, Retrying, before_log, retry_if_exception, stop_after_attempt
 from tenacity.wait import wait_random_exponential
 
@@ -430,25 +431,27 @@ class GoogleDrive:
 
             LOGGER.info("upload_file: Using chunksize=%d bytes", chunk_size)
 
-            media_body = MediaFileUpload(
-                file_path,
-                mimetype=mime_type,
-                chunksize=chunk_size,
-                resumable=True,
-            )
+            # Use BytesIO to avoid MediaFileUpload chunksize bug
+            LOGGER.info("Using BytesIO upload to avoid MediaFileUpload bug")
+            try:
+                with open(file_path, "rb") as f:
+                    file_content = f.read()
 
-            # Proactive fix for google-api-python-client MediaFileUpload chunksize bug
-            # Ensure chunksize is callable before using
-            if hasattr(media_body, "chunksize") and not callable(media_body.chunksize):
-                LOGGER.warning(
-                    "MediaFileUpload.chunksize is int (%d), converting to callable lambda...",
-                    media_body.chunksize,
+                media_body = MediaIoBaseUpload(
+                    BytesIO(file_content),
+                    mimetype=mime_type,
+                    chunksize=chunk_size,
+                    resumable=True,
                 )
-                media_body.chunksize = lambda: chunk_size
-
-            if hasattr(media_body, "_chunksize") and not isinstance(media_body._chunksize, int):
-                LOGGER.warning("Converting _chunksize to int...")
-                media_body._chunksize = int(media_body._chunksize)
+                LOGGER.info("BytesIO media_body created successfully")
+            except Exception as e:
+                LOGGER.error("BytesIO upload failed, falling back: %s", str(e))
+                media_body = MediaFileUpload(
+                    file_path,
+                    mimetype=mime_type,
+                    chunksize=chunk_size,
+                    resumable=True,
+                )
             request = self.__service.files().create(
                 body=body,
                 media_body=media_body,
