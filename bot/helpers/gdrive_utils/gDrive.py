@@ -399,21 +399,39 @@ class GoogleDrive:
                 return self._perform_chunked_upload(request, controller)
 
             uploaded_file = self._call(perform)
+
+            # 类型检查：确保返回值是字典
+            if not isinstance(uploaded_file, dict):
+                LOGGER.error(
+                    "upload_file: Invalid response from _call. expected=dict, got=%s, value=%r",
+                    type(uploaded_file).__name__,
+                    uploaded_file,
+                )
+                raise RuntimeError(
+                    f"Invalid upload response: expected dict, got {type(uploaded_file).__name__}"
+                )
+
             file_id = uploaded_file.get("id")
+            if not file_id:
+                LOGGER.error("upload_file: No file_id in response: %r", uploaded_file)
+                raise RuntimeError("Upload response missing file_id")
+
             return Messages.UPLOADED_SUCCESSFULLY.format(
                 filename,
                 self.__G_DRIVE_BASE_DOWNLOAD_URL.format(file_id),
                 filesize,
             )
         except HttpError as err:
+            LOGGER.error("upload_file: HttpError: %s", str(err), exc_info=True)
             if err.resp.get("content-type", "").startswith("application/json"):
                 reason = json.loads(err.content).get("error", {}).get("errors", [{}])[0].get("reason")
                 if reason in {"userRateLimitExceeded", "dailyLimitExceeded"}:
                     return Messages.RATE_LIMIT_EXCEEDED_MESSAGE
                 return f"**ERROR:** {reason}"
-            return f"**ERROR:** ```{str(err).replace('>', '').replace('<', '')}```"
+            return f"**ERROR:** ``````"
         except Exception as e:
-            return f"**ERROR:** ```{e}```"
+            LOGGER.error("upload_file: Unexpected exception: %s", str(e), exc_info=True)
+            return f"**ERROR:** ``````"
         finally:
             self._finish_upload_session()
 
@@ -509,21 +527,25 @@ class GoogleDrive:
         except RetryError as err:
             LOGGER.info("Total Attempts: %s", err.last_attempt.attempt_number)
             error = err.last_attempt.exception()
+            LOGGER.error("RetryError occurred: %s", str(error), exc_info=True)
             if isinstance(error, HttpError) and error.resp.get("content-type", "").startswith("application/json"):
                 reason = json.loads(error.content).get("error", {}).get("errors", [{}])[0].get("reason")
                 if reason in {"userRateLimitExceeded", "dailyLimitExceeded"}:
                     return Messages.RATE_LIMIT_EXCEEDED_MESSAGE
                 return f"**ERROR:** {reason}"
-            return f"**ERROR:** ```{str(error).replace('>', '').replace('<', '')}```"
+            return f"**ERROR:** ``````"
         except HttpError as err:
+            LOGGER.error("HttpError occurred: %s", str(err), exc_info=True)
             if err.resp.get("content-type", "").startswith("application/json"):
                 reason = json.loads(err.content).get("error", {}).get("errors", [{}])[0].get("reason")
                 if reason in {"userRateLimitExceeded", "dailyLimitExceeded"}:
                     return Messages.RATE_LIMIT_EXCEEDED_MESSAGE
                 return f"**ERROR:** {reason}"
-            return f"**ERROR:** ```{str(err).replace('>', '').replace('<', '')}```"
+            return f"**ERROR:** ``````"
         except Exception as e:
-            return f"**ERROR:** ```{e}```"
+            LOGGER.error("Unexpected exception in upload_file_with_progress: %s", str(e), exc_info=True)
+            LOGGER.error("Exception type: %s, Exception message: %s", type(e).__name__, str(e))
+            return f"**ERROR:** ``````"
         finally:
             self._finish_upload_session()
 
