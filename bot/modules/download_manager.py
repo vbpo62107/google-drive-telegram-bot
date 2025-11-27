@@ -540,9 +540,10 @@ async def _handle_fetch(client: Client, message, fetcher: Fetcher, *, url: Optio
 
 @Client.on_message(filters.private & filters.command(["download", "dl"]), group=-1)
 async def download_handler(client, message):
+    LOGGER.critical("🔥🔥🔥 download_handler TRIGGERED 🔥🔥🔥")
     LOGGER.info(
         "download_handler triggered: user=%s text=%r",
-        getattr(message.from_user, "id", None),
+        getattr(message.from_user, "id", "NO_USER"),
         message.text,
     )
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
@@ -565,6 +566,12 @@ async def download_handler(client, message):
 
 @Client.on_message(filters.private & filters.command(["ytdl"]), group=-1)
 async def ytdl_handler(client, message):
+    LOGGER.critical("🔥🔥🔥 ytdl_handler ABSOLUTELY TRIGGERED 🔥🔥🔥")
+    LOGGER.info(
+        "ytdl_handler triggered: user=%s text=%r",
+        getattr(message.from_user, "id", "NO_USER"),
+        message.text,
+    )
     if message.from_user is None:
         LOGGER.warning(
             "ytdl_handler invoked without from_user: chat_id=%s text=%r",
@@ -572,19 +579,17 @@ async def ytdl_handler(client, message):
             message.text,
         )
         return
-    LOGGER.info(
-        "ytdl_handler triggered: user=%s text=%r", message.from_user.id, message.text
-    )
     user_id = message.from_user.id
+    LOGGER.info("Checking permissions: user=%s", user_id)
     if user_id not in SUDO_USERS:
         LOGGER.info("ytdl_handler permission denied for user=%s", user_id)
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
         return
     url, _ = _parse_url_argument(message)
-    LOGGER.info("ytdl_handler parsed url: %r", url)
     if not url:
+        LOGGER.info("No URL provided, sending help message")
         await client.send_message(message.chat.id, Messages.PROVIDE_YTDL_LINK)
         return
-    LOGGER.info("ytdl_handler starting download: user=%s url=%r", user_id, url)
+    LOGGER.info("Starting YtDlp fetch for URL: %s", url)
     fetcher = YtDlpFetcher(DOWNLOAD_PATH, MAX_MIRROR_FILE_SIZE)
     await _handle_fetch(client, message, fetcher, url=url)
