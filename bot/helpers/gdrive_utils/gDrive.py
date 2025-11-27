@@ -382,10 +382,22 @@ class GoogleDrive:
         }
         LOGGER.info("Upload: %s", file_path)
         try:
+            # 确保 chunksize 是有效的整数
+            chunk_size = controller.current_size
+            if not isinstance(chunk_size, int) or chunk_size <= 0:
+                LOGGER.warning(
+                    "Invalid chunksize: %r (type=%s), using default 5MB",
+                    chunk_size,
+                    type(chunk_size).__name__,
+                )
+                chunk_size = 5 * 1024 * 1024  # 5MB default
+
+            LOGGER.info("upload_file: Using chunksize=%d bytes", chunk_size)
+
             media_body = MediaFileUpload(
                 file_path,
                 mimetype=mime_type,
-                chunksize=controller.current_size,
+                chunksize=chunk_size,
                 resumable=True,
             )
             request = self.__service.files().create(
