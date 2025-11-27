@@ -436,6 +436,19 @@ class GoogleDrive:
                 chunksize=chunk_size,
                 resumable=True,
             )
+
+            # Proactive fix for google-api-python-client MediaFileUpload chunksize bug
+            # Ensure chunksize is callable before using
+            if hasattr(media_body, "chunksize") and not callable(media_body.chunksize):
+                LOGGER.warning(
+                    "MediaFileUpload.chunksize is int (%d), converting to callable lambda...",
+                    media_body.chunksize,
+                )
+                media_body.chunksize = lambda: chunk_size
+
+            if hasattr(media_body, "_chunksize") and not isinstance(media_body._chunksize, int):
+                LOGGER.warning("Converting _chunksize to int...")
+                media_body._chunksize = int(media_body._chunksize)
             request = self.__service.files().create(
                 body=body,
                 media_body=media_body,
