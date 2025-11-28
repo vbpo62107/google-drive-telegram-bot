@@ -137,6 +137,7 @@ class MirrorTaskRunner:
             await self._final_message(success=False)
             return "failed"
         except Exception as exc:
+            LOGGER.error(" Task %s execution failed: %s", self.id, exc, exc_info=True)
             await self._update_status(MirrorTaskStatus.FAILED, "失败", paused=False, error=str(exc))
             await self._final_message(success=False)
             return "failed"
@@ -144,6 +145,7 @@ class MirrorTaskRunner:
             await self._cleanup()
 
     async def _run(self) -> None:
+        LOGGER.info(" Task %s running...", self.id)
         self._upload_pause_event.set()
         await self._update_status(MirrorTaskStatus.RUNNING, "准备中", paused=False, processed_bytes=0, total_bytes=0, speed=0, error=None)
         os.makedirs(self._download_dir, exist_ok=True)
@@ -200,6 +202,7 @@ class MirrorTaskRunner:
         await asyncio.to_thread(os.replace, self._temp_path, self._destination)
 
     async def _download_from_telegram(self) -> None:
+        LOGGER.info("📥 Task %s starting Telegram download: %s", self.id, self.url)
         if not self.manager.client:
             raise ValueError("客户端不可用")
         parts = self.url[5:].split("/", 1)
