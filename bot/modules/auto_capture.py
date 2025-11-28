@@ -398,13 +398,16 @@ async def auto_capture_listener(client, message):
         await task_manager.update_message_id(runner.id, sent.id)
         await _update_stage(runner.id, "排队中")
         await _notify_admins(client, owner_id, runner.id, message, keywords, file_name, source)
+        LOGGER.info("Auto capture completed successfully: runner.id=%s, file=%s", runner.id, file_name)
 
     except Exception as exc:
         LOGGER.error("Auto capture failed: %s", exc, exc_info=True)
         owner_id = locals().get("owner_id", 0)
         if owner_id:
             try:
-                await client.send_message(owner_id, f"⚠️ 自动任务创建失败\n{exc}")
+                error_msg = f" 自动任务创建失败\n错误: {str(exc)}\n\n详情: {exc.__class__.__name__}"
+                await client.send_message(owner_id, error_msg)
+                LOGGER.error("Error message sent to user %s", owner_id)
             except Exception as send_exc:
                 LOGGER.error("Failed to send error message: %s", send_exc)
 
