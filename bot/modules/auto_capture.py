@@ -308,7 +308,7 @@ async def delete_monitor_handler(client, message):
         await client.send_message(message.chat.id, f"⚠️ {exc}")
 
 
-@Client.on_message(filters.channel)
+# @Client.on_message(filters.channel)  # Manually registered in __main__.py
 async def auto_capture_listener(client, message):
     """Listen for messages in monitored channels and auto-download media."""
     # 详细日志：记录所有接收到的消息

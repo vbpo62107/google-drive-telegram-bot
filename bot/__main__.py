@@ -189,6 +189,15 @@ if __name__ == "__main__":
     )
     LOGGER.info("✅ delete_monitor_handler registered")
 
+    # Auto Capture Listener (monitor channel messages)
+    from bot.modules.auto_capture import auto_capture_listener
+
+    app.add_handler(
+        MessageHandler(auto_capture_listener, filters.channel),
+        group=1  # 低优先级，不与命令冲突
+    )
+    LOGGER.info("✅ auto_capture_listener registered")
+
     # Plugins handlers - Clone/Copy
     app.add_handler(
         MessageHandler(
