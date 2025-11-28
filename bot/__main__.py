@@ -251,6 +251,19 @@ if __name__ == "__main__":
 
     LOGGER.info("All command handlers registered successfully")
     LOGGER.info("="*60)
+    # 临时调试
+    @app.on_message()
+    async def debug_catch_all(client, message):
+        import logging
+
+        logging.warning(
+            "CATCH_ALL: Received message from chat_id=%s, type=%s",
+            message.chat.id if message.chat else None,
+            message.chat.type if message.chat else None,
+        )
+
+    LOGGER.info("Debug catch-all handler registered")
+
     LOGGER.info("Starting bot...")
     app.run()
     LOGGER.info("Bot stopped.")
