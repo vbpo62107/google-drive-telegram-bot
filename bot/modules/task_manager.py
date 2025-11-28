@@ -462,15 +462,19 @@ class TaskManager:
 
     async def initialize(self, client) -> None:
         async with self._init_lock:
+            LOGGER.info("Initializing TaskManager... initialized=%s", self._initialized)
             if self._initialized:
                 if self.client is None:
                     self.client = client
+                    LOGGER.info("TaskManager client updated")
                 return
             self.client = client
-            for _ in range(self.concurrency_limit):
+            for i in range(self.concurrency_limit):
+                LOGGER.info("Starting worker %d", i)
                 self._workers.append(asyncio.create_task(self._worker_loop()))
             await self._recover_tasks()
             self._initialized = True
+            LOGGER.info("TaskManager initialized successfully")
 
     async def submit(self, client, user_id: int, chat_id: int, url: str, file_name: str) -> MirrorTaskRunner:
         await self.initialize(client)

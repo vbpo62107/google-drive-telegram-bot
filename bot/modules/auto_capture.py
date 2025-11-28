@@ -381,8 +381,12 @@ async def auto_capture_listener(client, message):
             await _notify_missing_credentials(client, message, keywords)
             return
 
+        # 关键修复确保 task_manager 已初始化并启动 worker
+        LOGGER.info("Initializing task_manager...")
+        await task_manager.initialize(client)
+
         runner = await task_manager.submit(client, owner_id, owner_id, source, file_name)
-        LOGGER.info("Task created: runner.id=%s", runner.id)
+        LOGGER.info("Task created: runner.id=%s, status=%s", runner.id, runner.stage)
 
         channel_title = message.chat.title or str(message.chat.id)
         link = message.link or f"tg://{message.chat.id}/{message.id}"
