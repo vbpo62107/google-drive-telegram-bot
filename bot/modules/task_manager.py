@@ -253,25 +253,30 @@ class MirrorTaskRunner:
                 progress=progress,
             )
             LOGGER.info("📥 download_media result: %s", result)
+
+            # 关键修复：使用 download_media 返回的路径，而不是 self._temp_path
+            # 因为 download_media 可能返回不同的路径（绝对路径）
+            actual_path = result if result else self._temp_path
+            LOGGER.info("📥 Checking if file exists: %s", actual_path)
+
+            if not os.path.exists(actual_path):
+                LOGGER.error("❌ File does not exist: %s", actual_path)
+                raise ValueError("下载失败：文件不存在")
+
+            file_size = os.path.getsize(actual_path)
+            LOGGER.info("✅ Download completed: file_size=%s bytes, actual_path=%s", file_size, actual_path)
+
+            if self._downloaded:
+                await self._handle_progress("下载中", self._downloaded, self._total, force=True)
+
+            # 如果路径不同，需要移动文件
+            if actual_path != self._temp_path:
+                LOGGER.info("📥 Moving file from %s to %s", actual_path, self._temp_path)
+                await asyncio.to_thread(os.replace, actual_path, self._temp_path)
+            await asyncio.to_thread(os.replace, self._temp_path, self._destination)
         except Exception as exc:
             LOGGER.error("download_media failed: %s", exc, exc_info=True)
             raise ValueError(f"下载失败: {exc}")
-
-        # 关键修复使用 download_media 返回的路径而不是 self._temp_path
-        download_path = result or self._temp_path
-        LOGGER.info("📥 Resolved download path: %s", download_path)
-
-        LOGGER.info("📥 Checking if file exists: %s", download_path)
-        if not os.path.exists(download_path):
-            LOGGER.error(" Temp file does not exist after download: %s", download_path)
-            raise ValueError("下载失败文件不存在")
-
-        file_size = os.path.getsize(download_path)
-        LOGGER.info(" Download completed: file_size=%s bytes", file_size)
-
-        if self._downloaded:
-            await self._handle_progress("下载中", self._downloaded, self._total, force=True)
-        await asyncio.to_thread(os.replace, download_path, self._destination)
 
     async def _upload(self) -> None:
         try:
