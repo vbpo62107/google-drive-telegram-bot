@@ -373,6 +373,7 @@ class MirrorTaskRunner:
         try:
             drive = await get_drive_instance(self.user_id)
         except DriveAccessError as exc:
+            LOGGER.error("Drive access error: %s", exc)
             raise TaskRetry(drive_error_message(exc.code))
         upload_total = await asyncio.to_thread(self._determine_upload_size)
         self._stage_start = time.monotonic()
@@ -385,25 +386,57 @@ class MirrorTaskRunner:
         def cancelled():
             return self._cancel_requested or self._pause_requested
 
-        try:
-            result = await drive.upload_file_with_progress(
-                self._destination,
-                progress_callback=progress_callback,
-                pause_event=self._upload_pause_event,
-                cancel_callback=cancelled,
-            )
-        except RuntimeError as exc:
-            if "cancelled" in str(exc):
-                if self._cancel_requested:
-                    raise TaskCancelled("已取消")
-                raise TaskPaused("已暂停")
-            raise
+        max_retries = 2
+        for attempt in range(1, max_retries + 1):
+            try:
+                LOGGER.info("📤 Upload attempt %d/%d", attempt, max_retries)
+                result = await asyncio.wait_for(
+                    drive.upload_file_with_progress(
+                        self._destination,
+                        progress_callback=progress_callback,
+                        pause_event=self._upload_pause_event,
+                        cancel_callback=cancelled,
+                    ),
+                    timeout=3600,  # 1小时超时
+                )
+                break  # 成功，退出循环
+            except asyncio.TimeoutError:
+                if attempt >= max_retries:
+                    LOGGER.error("Upload timeout after %d attempts", max_retries)
+                    raise TaskRetry("上传超时")
+
+                wait_time = min(2 ** attempt * 5, 60)
+                LOGGER.warning("Upload timeout (attempt %d), retrying in %ds", attempt, wait_time)
+                await asyncio.sleep(wait_time)
+            except RuntimeError as exc:
+                error_str = str(exc)
+                if "cancelled" in error_str:
+                    if self._cancel_requested:
+                        raise TaskCancelled("已取消")
+                    raise TaskPaused("已暂停")
+
+                if attempt >= max_retries:
+                    LOGGER.error("Upload failed after %d attempts: %s", max_retries, exc)
+                    raise TaskRetry(error_str)
+
+                wait_time = min(2 ** attempt * 5, 60)
+                LOGGER.warning(
+                    "Upload failed (attempt %d), retrying in %ds: %s",
+                    attempt,
+                    wait_time,
+                    exc,
+                )
+                await asyncio.sleep(wait_time)
+
         if result.startswith("✅"):
             self._drive_link = result
             await self._handle_progress("上传中", upload_total, upload_total, force=True)
+            LOGGER.info("✅ Upload completed: %s", result)
         elif result.startswith("❗") or result.startswith("**ERROR"):
+            LOGGER.warning("Upload warning/error: %s", result)
             raise TaskRetry(result)
         else:
+            LOGGER.warning("Upload unexpected result: %s", result)
             raise TaskRetry(result)
 
     async def _handle_progress(self, stage_text: str, processed: int, total: int, force: bool = False) -> None:
