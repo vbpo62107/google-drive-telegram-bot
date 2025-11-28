@@ -731,12 +731,36 @@ class TaskManager:
                 self._queue.task_done()
 
     async def _recover_tasks(self) -> None:
-        records = await asyncio.to_thread(self._fetch_incomplete_records)
-        for record in records:
-            runner = MirrorTaskRunner(self, record)
-            self._runners[runner.id] = runner
-            if record.status in {MirrorTaskStatus.PENDING.value, MirrorTaskStatus.RUNNING.value} and not record.paused:
-                await self._queue.put(runner)
+        """恢复未完成的任务"""
+        try:
+            records = await asyncio.to_thread(self._fetch_incomplete_records)
+            LOGGER.info("📋 Recovering %d incomplete tasks", len(records))
+
+            for record in records:
+                try:
+                    runner = MirrorTaskRunner(self, record)
+                    self._runners[runner.id] = runner
+
+                    if record.status == MirrorTaskStatus.RUNNING.value:
+                        # 正在运行的任务标记为待处理并重新入队
+                        LOGGER.info("🔄 Restarting task %d (was RUNNING)", runner.id)
+                        await runner.request_resume()
+                        if record.message_id:
+                            await self._queue.put(runner)
+                    elif record.status == MirrorTaskStatus.PENDING.value and not record.paused:
+                        # 待处理的任务入队
+                        LOGGER.info("⏳ Enqueuing task %d (PENDING)", runner.id)
+                        if record.message_id:
+                            await self._queue.put(runner)
+                    elif record.status == MirrorTaskStatus.PAUSED.value:
+                        LOGGER.info("⏸️ Task %d is paused", runner.id)
+                        pass
+                except Exception as exc:
+                    LOGGER.error("Failed to recover task %s: %s", record.id if record else "?", exc)
+
+            LOGGER.info("✅ Task recovery completed")
+        except Exception as exc:
+            LOGGER.error("Task recovery failed: %s", exc, exc_info=True)
 
     def _fetch_incomplete_records(self):
         with get_session() as session:
