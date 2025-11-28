@@ -226,6 +226,13 @@ async def add_monitor_handler(client, message):
             await client.send_message(message.chat.id, "⚠️ 请提供至少一个关键词.")
             return
         record = await asyncio.to_thread(create_monitor, channel_id, keywords)
+        LOGGER.info(
+            "Monitor added by user %s: id=%s channel=%s keywords=%s",
+            message.from_user.id,
+            record.get("id"),
+            channel_id,
+            ", ".join(keywords),
+        )
         await client.send_message(message.chat.id, f"✅ 已添加监控\n{_format_monitor_line(record)}")
     except Exception as exc:
         await client.send_message(message.chat.id, f"⚠️ {exc}")
@@ -241,6 +248,11 @@ async def list_monitor_handler(client, message):
         if not records:
             await client.send_message(message.chat.id, "ℹ️ 当前没有监控任务.")
             return
+        LOGGER.info(
+            "List monitors requested by user %s: count=%s",
+            message.from_user.id,
+            len(records),
+        )
         lines = ["📋 当前监控列表:"] + [_format_monitor_line(record) for record in records]
         await client.send_message(message.chat.id, "\n".join(lines))
     except Exception as exc:
@@ -261,6 +273,12 @@ async def toggle_monitor_handler(client, message):
         if not record:
             await client.send_message(message.chat.id, "⚠️ 未找到对应的监控项")
             return
+        LOGGER.info(
+            "Monitor toggled by user %s: id=%s enabled=%s",
+            message.from_user.id,
+            monitor_id,
+            record.get("enabled"),
+        )
         await client.send_message(message.chat.id, f"✅ 状态已更新\n{_format_monitor_line(record)}")
     except Exception as exc:
         await client.send_message(message.chat.id, f"⚠️ {exc}")
@@ -280,6 +298,11 @@ async def delete_monitor_handler(client, message):
         if not removed:
             await client.send_message(message.chat.id, "⚠️ 未找到对应的监控项")
             return
+        LOGGER.info(
+            "Monitor deleted by user %s: id=%s",
+            message.from_user.id,
+            monitor_id,
+        )
         await client.send_message(message.chat.id, "✅ 已删除监控项.")
     except Exception as exc:
         await client.send_message(message.chat.id, f"⚠️ {exc}")
