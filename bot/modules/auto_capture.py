@@ -287,28 +287,63 @@ async def delete_monitor_handler(client, message):
 
 @Client.on_message(filters.channel)
 async def auto_capture_listener(client, message):
+    """Listen for messages in monitored channels and auto-download media."""
+    # 详细日志：记录所有接收到的消息
+    LOGGER.info(
+        "auto_capture_listener received: chat_id=%s, message_id=%s, "
+        "text=%r, caption=%r, has_video=%s, has_document=%s, "
+        "is_forwarded=%s",
+        message.chat.id if message.chat else None,
+        message.id,
+        message.text[:50] if message.text else None,
+        message.caption[:50] if message.caption else None,
+        hasattr(message, "video") and message.video is not None,
+        hasattr(message, "document") and message.document is not None,
+        message.forward_from is not None or message.forward_from_chat is not None,
+    )
+
     if message.chat is None:
+        LOGGER.warning("Message chat is None, returning")
         return
+
     try:
         monitors = await asyncio.to_thread(get_enabled_monitors_by_channel, message.chat.id)
+        LOGGER.info("Found %d monitors for channel %s", len(monitors) if monitors else 0, message.chat.id)
+
         if not monitors:
+            LOGGER.debug("No monitors found for channel %s", message.chat.id)
             return
+
         content = " ".join(part for part in [message.text, message.caption] if part)
+        LOGGER.debug("Message content: %r", content[:100] if content else "(empty)")
+
         matched, keywords = _match_monitors(monitors, content)
+        LOGGER.info("Monitor match result: matched=%s, keywords=%s", matched, keywords)
+
         if not matched:
+            LOGGER.debug("No keywords matched")
             return
+
         source, file_name = _build_source(message)
+        LOGGER.info("Build source result: source=%r, file_name=%r", source, file_name)
+
         if not source or not file_name:
+            LOGGER.warning("Source or file_name is empty, cannot proceed")
             return
+
         owner_id = await _resolve_owner()
         if not owner_id:
+            LOGGER.warning("No authorized owner found")
             await _notify_missing_credentials(client, message, keywords)
             return
+
         runner = await task_manager.submit(client, owner_id, owner_id, source, file_name)
+        LOGGER.info("Task created: runner.id=%s", runner.id)
+
         channel_title = message.chat.title or str(message.chat.id)
         link = message.link or f"tg://{message.chat.id}/{message.id}"
         summary = (
-            "📡 自动任务已创建\n"
+            "✅ 自动任务已创建\n"
             f"ID: {runner.id}\n"
             f"频道: {channel_title}\n"
             f"关键字: {', '.join(keywords) if keywords else '-'}\n"
@@ -319,12 +354,13 @@ async def auto_capture_listener(client, message):
         await task_manager.update_message_id(runner.id, sent.id)
         await _update_stage(runner.id, "排队中")
         await _notify_admins(client, owner_id, runner.id, message, keywords, file_name, source)
+
     except Exception as exc:
-        LOGGER.error("Auto capture failed: %s", exc)
+        LOGGER.error("Auto capture failed: %s", exc, exc_info=True)
         owner_id = locals().get("owner_id", 0)
         if owner_id:
             try:
                 await client.send_message(owner_id, f"⚠️ 自动任务创建失败\n{exc}")
-            except Exception:
-                pass
+            except Exception as send_exc:
+                LOGGER.error("Failed to send error message: %s", send_exc)
 
