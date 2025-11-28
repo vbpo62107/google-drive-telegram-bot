@@ -10,6 +10,7 @@ class KeywordMonitor(BASE):
     __tablename__ = "keyword_monitors"
     id = Column(Integer, primary_key=True, autoincrement=True)
     channel_id = Column(BigInteger, nullable=False, index=True)
+    user_id = Column(BigInteger, nullable=False, index=True)
     keywords = Column(Text, nullable=False)
     enabled = Column(Boolean, nullable=False, default=True)
 
@@ -42,15 +43,18 @@ def _to_dict(record: KeywordMonitor) -> dict:
     return {
         "id": record.id,
         "channel_id": record.channel_id,
+        "user_id": record.user_id,
         "keywords": _deserialize_keywords(record.keywords),
         "enabled": record.enabled,
     }
 
 
-def create_monitor(channel_id: int, keywords: List[str], enabled: bool = True) -> dict:
+def create_monitor(channel_id: int, user_id: int, keywords: List[str], enabled: bool = True) -> dict:
     payload = _serialize_keywords(keywords)
     with get_session() as session:
-        record = KeywordMonitor(channel_id=channel_id, keywords=payload, enabled=enabled)
+        record = KeywordMonitor(
+            channel_id=channel_id, user_id=user_id, keywords=payload, enabled=enabled
+        )
         session.add(record)
         session.commit()
         session.refresh(record)
