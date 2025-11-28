@@ -257,17 +257,21 @@ class MirrorTaskRunner:
             LOGGER.error("download_media failed: %s", exc, exc_info=True)
             raise ValueError(f"下载失败: {exc}")
 
-        LOGGER.info("📥 Checking if file exists: %s", self._temp_path)
-        if not os.path.exists(self._temp_path):
-            LOGGER.error(" Temp file does not exist after download: %s", self._temp_path)
+        # 关键修复使用 download_media 返回的路径而不是 self._temp_path
+        download_path = result or self._temp_path
+        LOGGER.info("📥 Resolved download path: %s", download_path)
+
+        LOGGER.info("📥 Checking if file exists: %s", download_path)
+        if not os.path.exists(download_path):
+            LOGGER.error(" Temp file does not exist after download: %s", download_path)
             raise ValueError("下载失败文件不存在")
 
-        file_size = os.path.getsize(self._temp_path)
+        file_size = os.path.getsize(download_path)
         LOGGER.info(" Download completed: file_size=%s bytes", file_size)
 
         if self._downloaded:
             await self._handle_progress("下载中", self._downloaded, self._total, force=True)
-        await asyncio.to_thread(os.replace, self._temp_path, self._destination)
+        await asyncio.to_thread(os.replace, download_path, self._destination)
 
     async def _upload(self) -> None:
         try:
