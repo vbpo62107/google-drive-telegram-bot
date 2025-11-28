@@ -215,18 +215,49 @@ class MirrorTaskRunner:
         except ValueError as exc:
             raise ValueError("无效的 Telegram 源") from exc
 
-        LOGGER.info("📥 Fetching message: chat_id=%s, message_id=%s", chat_id, message_id)
-        try:
-            message = await self.manager.client.get_messages(chat_id, message_id)
-        except Exception as exc:
-            LOGGER.error("Failed to get message: %s", exc, exc_info=True)
-            raise ValueError(f"获取消息失败: {exc}")
+        # 重试机制
+        max_retries = 3
+        retry_count = 0
+        while retry_count <= max_retries:
+            try:
+                LOGGER.info(
+                    "📥 Fetching message (attempt %d/%d): chat_id=%s, message_id=%s",
+                    retry_count + 1,
+                    max_retries + 1,
+                    chat_id,
+                    message_id,
+                )
+                message = await self.manager.client.get_messages(chat_id, message_id)
+                break
+            except Exception as exc:
+                retry_count += 1
+                if retry_count > max_retries:
+                    LOGGER.error(
+                        "Failed to get message after %d retries: %s",
+                        max_retries,
+                        exc,
+                        exc_info=True,
+                    )
+                    raise ValueError(f"获取消息失败: {exc}")
+
+                wait_time = min(2 ** retry_count, 16)
+                LOGGER.warning(
+                    "Failed to fetch message (attempt %d), retrying in %ds: %s",
+                    retry_count,
+                    wait_time,
+                    exc,
+                )
+                await asyncio.sleep(wait_time)
 
         media = None
         for attr in ("document", "video", "audio", "voice", "photo", "animation"):
             media = getattr(message, attr, None)
             if media:
-                LOGGER.info("📥 Found media type: %s", attr)
+                LOGGER.info(
+                    "📥 Found media type: %s, size=%s",
+                    attr,
+                    getattr(media, "file_size", "unknown"),
+                )
                 break
         if not media:
             raise ValueError("未找到可下载的媒体")
@@ -246,45 +277,87 @@ class MirrorTaskRunner:
             await self._check_control()
             await self._handle_progress("下载中", current, total)
 
-        LOGGER.info("📥 Starting download_media: file_name=%s, size=%s", self._temp_path, size)
-        try:
-            result = await self.manager.client.download_media(
-                message,
-                file_name=self._temp_path,
-                progress=progress,
-            )
-            LOGGER.info("📥 download_media result: %s", result)
+        # 下载重试
+        retry_count = 0
+        while retry_count <= max_retries:
+            try:
+                LOGGER.info(
+                    "📥 Starting download_media (attempt %d/%d): file_name=%s, size=%s",
+                    retry_count + 1,
+                    max_retries + 1,
+                    self._temp_path,
+                    size,
+                )
+                result = await self.manager.client.download_media(
+                    message,
+                    file_name=self._temp_path,
+                    progress=progress,
+                    timeout=300,
+                )
+                LOGGER.info("📥 download_media result: %s", result)
+                break
+            except asyncio.TimeoutError as exc:
+                retry_count += 1
+                if retry_count > max_retries:
+                    LOGGER.error("Download timeout after %d retries", max_retries)
+                    raise ValueError("下载超时")
 
-            # 关键修复：使用 download_media 返回的路径，而不是 self._temp_path
-            # 因为 download_media 可能返回不同的路径（绝对路径）
-            actual_path = result if result else self._temp_path
-            LOGGER.info("📥 Checking if file exists: %s", actual_path)
+                wait_time = min(2 ** retry_count, 16)
+                LOGGER.warning(
+                    "Download timeout (attempt %d), retrying in %ds",
+                    retry_count,
+                    wait_time,
+                )
+                await asyncio.sleep(wait_time)
 
-            if not os.path.exists(actual_path):
-                LOGGER.error("❌ File does not exist: %s", actual_path)
-                raise ValueError("下载失败：文件不存在")
+                if os.path.exists(self._temp_path):
+                    os.remove(self._temp_path)
+            except Exception as exc:
+                retry_count += 1
+                if retry_count > max_retries:
+                    LOGGER.error(
+                        "Download failed after %d retries: %s",
+                        max_retries,
+                        exc,
+                        exc_info=True,
+                    )
+                    raise ValueError(f"下载失败: {exc}")
 
-            file_size = os.path.getsize(actual_path)
-            LOGGER.info("✅ Download completed: file_size=%s bytes, actual_path=%s", file_size, actual_path)
+                wait_time = min(2 ** retry_count, 16)
+                LOGGER.warning(
+                    "Download failed (attempt %d), retrying in %ds: %s",
+                    retry_count,
+                    wait_time,
+                    exc,
+                )
+                await asyncio.sleep(wait_time)
 
-            if self._downloaded:
-                await self._handle_progress("下载中", self._downloaded, self._total, force=True)
+                if os.path.exists(self._temp_path):
+                    os.remove(self._temp_path)
 
-            # 如果路径不同，需要移动文件
-            if actual_path != self._temp_path:
-                LOGGER.info("📥 Moving file from %s to %s", actual_path, self._temp_path)
-                try:
-                    await asyncio.to_thread(shutil.move, actual_path, self._temp_path)
-                except Exception as mv_exc:
-                    LOGGER.warning("shutil.move failed: %s, trying copy+delete", mv_exc)
-                    await asyncio.to_thread(shutil.copy2, actual_path, self._temp_path)
-                    await asyncio.to_thread(os.remove, actual_path)
+        actual_path = result if result else self._temp_path
+        LOGGER.info("📥 Checking if file exists: %s", actual_path)
 
-            # 最后，将临时文件移动到目的地
-            await asyncio.to_thread(shutil.move, self._temp_path, self._destination)
-        except Exception as exc:
-            LOGGER.error("download_media failed: %s", exc, exc_info=True)
-            raise ValueError(f"下载失败: {exc}")
+        if not os.path.exists(actual_path):
+            LOGGER.error("❌ File does not exist: %s", actual_path)
+            raise ValueError("下载失败：文件不存在")
+
+        file_size = os.path.getsize(actual_path)
+        LOGGER.info("✅ Download completed: file_size=%s bytes, actual_path=%s", file_size, actual_path)
+
+        if self._downloaded:
+            await self._handle_progress("下载中", self._downloaded, self._total, force=True)
+
+        if actual_path != self._temp_path:
+            LOGGER.info("📥 Moving file from %s to %s", actual_path, self._temp_path)
+            try:
+                await asyncio.to_thread(shutil.move, actual_path, self._temp_path)
+            except Exception as mv_exc:
+                LOGGER.warning("shutil.move failed: %s, trying copy+delete", mv_exc)
+                await asyncio.to_thread(shutil.copy2, actual_path, self._temp_path)
+                await asyncio.to_thread(os.remove, actual_path)
+
+        await asyncio.to_thread(shutil.move, self._temp_path, self._destination)
 
     async def _upload(self) -> None:
         try:
