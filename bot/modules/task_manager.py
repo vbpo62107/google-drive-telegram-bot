@@ -213,17 +213,27 @@ class MirrorTaskRunner:
             message_id = int(parts[1])
         except ValueError as exc:
             raise ValueError("无效的 Telegram 源") from exc
-        message = await self.manager.client.get_messages(chat_id, message_id)
+
+        LOGGER.info("📥 Fetching message: chat_id=%s, message_id=%s", chat_id, message_id)
+        try:
+            message = await self.manager.client.get_messages(chat_id, message_id)
+        except Exception as exc:
+            LOGGER.error("Failed to get message: %s", exc, exc_info=True)
+            raise ValueError(f"获取消息失败: {exc}")
+
         media = None
         for attr in ("document", "video", "audio", "voice", "photo", "animation"):
             media = getattr(message, attr, None)
             if media:
+                LOGGER.info("📥 Found media type: %s", attr)
                 break
         if not media:
             raise ValueError("未找到可下载的媒体")
+
         size = getattr(media, "file_size", 0) or 0
         if size and size > MAX_MIRROR_FILE_SIZE:
             raise ValueError("文件大小超出限制")
+
         self._stage_start = time.monotonic()
         self._downloaded = 0
         self._total = size
@@ -235,13 +245,26 @@ class MirrorTaskRunner:
             await self._check_control()
             await self._handle_progress("下载中", current, total)
 
-        await self.manager.client.download_media(
-            message,
-            file_name=self._temp_path,
-            progress=progress,
-        )
+        LOGGER.info("📥 Starting download_media: file_name=%s, size=%s", self._temp_path, size)
+        try:
+            result = await self.manager.client.download_media(
+                message,
+                file_name=self._temp_path,
+                progress=progress,
+            )
+            LOGGER.info("📥 download_media result: %s", result)
+        except Exception as exc:
+            LOGGER.error("download_media failed: %s", exc, exc_info=True)
+            raise ValueError(f"下载失败: {exc}")
+
+        LOGGER.info("📥 Checking if file exists: %s", self._temp_path)
         if not os.path.exists(self._temp_path):
-            raise ValueError("下载失败")
+            LOGGER.error(" Temp file does not exist after download: %s", self._temp_path)
+            raise ValueError("下载失败文件不存在")
+
+        file_size = os.path.getsize(self._temp_path)
+        LOGGER.info(" Download completed: file_size=%s bytes", file_size)
+
         if self._downloaded:
             await self._handle_progress("下载中", self._downloaded, self._total, force=True)
         await asyncio.to_thread(os.replace, self._temp_path, self._destination)
