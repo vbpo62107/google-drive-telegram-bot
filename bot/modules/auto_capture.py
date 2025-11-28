@@ -95,21 +95,62 @@ def _extract_links(content: str) -> List[str]:
 
 
 def _extract_media(message) -> str:
+    """Extract media file name from message, including forwarded messages."""
     media = None
     file_name = ""
+
+    # 首先检查直接消息属性
     for attr in ("document", "video", "audio", "animation"):
         media = getattr(message, attr, None)
         if media:
             file_name = getattr(media, "file_name", "") or f"media_{message.chat.id}_{message.id}"
+            LOGGER.debug("Found %s media: %s", attr, file_name)
             break
+
+    # 检查照片
     if not media and getattr(message, "photo", None):
         media = message.photo
         file_name = f"photo_{message.chat.id}_{message.id}.jpg"
+        LOGGER.debug("Found photo media: %s", file_name)
+
+    # 检查语音
     if not media and getattr(message, "voice", None):
         media = message.voice
         file_name = getattr(media, "file_name", "") or f"voice_{message.chat.id}_{message.id}.ogg"
+        LOGGER.debug("Found voice media: %s", file_name)
+
+    # 关键修复：检查转发消息中的视频
+    if not media and message.forward_from:
+        LOGGER.info("Message is forwarded from user %s, checking forwarded content...", message.forward_from.id)
+        # 转发消息的媒体在 message 对象中，需要递归检查
+        for attr in ("document", "video", "audio", "animation", "photo", "voice"):
+            media = getattr(message, attr, None)
+            if media:
+                if attr == "photo":
+                    file_name = f"forwarded_photo_{message.chat.id}_{message.id}.jpg"
+                else:
+                    file_name = getattr(media, "file_name", "") or f"forwarded_{attr}_{message.chat.id}_{message.id}"
+                LOGGER.info("Found forwarded %s media: %s", attr, file_name)
+                break
+
+    # 检查转发的频道消息
+    if not media and message.forward_from_chat:
+        LOGGER.info("Message is forwarded from channel %s, checking content...", message.forward_from_chat.id)
+        for attr in ("document", "video", "audio", "animation", "photo", "voice"):
+            media = getattr(message, attr, None)
+            if media:
+                if attr == "photo":
+                    file_name = f"channel_photo_{message.chat.id}_{message.id}.jpg"
+                else:
+                    file_name = getattr(media, "file_name", "") or f"channel_{attr}_{message.chat.id}_{message.id}"
+                LOGGER.info("Found channel-forwarded %s media: %s", attr, file_name)
+                break
+
     if not media:
+        LOGGER.debug("No media found in message")
         return ""
+
+    LOGGER.info("_extract_media returning: %s", file_name)
     return file_name
 
 
