@@ -221,11 +221,12 @@ async def add_monitor_handler(client, message):
             await client.send_message(message.chat.id, "⚠️ 用法: /addmonitor <频道ID> <关键字,关键字>")
             return
         channel_id = int(message.command[1])
+        user_id = message.from_user.id  # 新增：获取添加者的 user_id
         keywords = _parse_keywords(" ".join(message.command[2:]))
         if not keywords:
             await client.send_message(message.chat.id, "⚠️ 请提供至少一个关键词.")
             return
-        record = await asyncio.to_thread(create_monitor, channel_id, keywords)
+        record = await asyncio.to_thread(create_monitor, channel_id, user_id, keywords)  # 新增：传递 user_id
         LOGGER.info(
             "Monitor added by user %s: id=%s channel=%s keywords=%s",
             message.from_user.id,
