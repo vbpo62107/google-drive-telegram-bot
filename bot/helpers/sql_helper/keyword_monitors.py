@@ -52,9 +52,7 @@ def _to_dict(record: KeywordMonitor) -> dict:
 def create_monitor(channel_id: int, user_id: int, keywords: List[str], enabled: bool = True) -> dict:
     payload = _serialize_keywords(keywords)
     with get_session() as session:
-        record = KeywordMonitor(
-            channel_id=channel_id, user_id=user_id, keywords=payload, enabled=enabled
-        )
+        record = KeywordMonitor(channel_id=channel_id, user_id=user_id, keywords=payload, enabled=enabled)
         session.add(record)
         session.commit()
         session.refresh(record)
