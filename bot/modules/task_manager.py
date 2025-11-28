@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 import threading
 import time
 from typing import Dict, Optional, Set
@@ -199,7 +200,7 @@ class MirrorTaskRunner:
                         await self._handle_progress("下载中", self._downloaded, self._total)
                 if self._downloaded:
                     await self._handle_progress("下载中", self._downloaded, self._total, force=True)
-        await asyncio.to_thread(os.replace, self._temp_path, self._destination)
+        await asyncio.to_thread(shutil.move, self._temp_path, self._destination)
 
     async def _download_from_telegram(self) -> None:
         LOGGER.info("📥 Task %s starting Telegram download: %s", self.id, self.url)
@@ -272,8 +273,15 @@ class MirrorTaskRunner:
             # 如果路径不同，需要移动文件
             if actual_path != self._temp_path:
                 LOGGER.info("📥 Moving file from %s to %s", actual_path, self._temp_path)
-                await asyncio.to_thread(os.replace, actual_path, self._temp_path)
-            await asyncio.to_thread(os.replace, self._temp_path, self._destination)
+                try:
+                    await asyncio.to_thread(shutil.move, actual_path, self._temp_path)
+                except Exception as mv_exc:
+                    LOGGER.warning("shutil.move failed: %s, trying copy+delete", mv_exc)
+                    await asyncio.to_thread(shutil.copy2, actual_path, self._temp_path)
+                    await asyncio.to_thread(os.remove, actual_path)
+
+            # 最后，将临时文件移动到目的地
+            await asyncio.to_thread(shutil.move, self._temp_path, self._destination)
         except Exception as exc:
             LOGGER.error("download_media failed: %s", exc, exc_info=True)
             raise ValueError(f"下载失败: {exc}")
