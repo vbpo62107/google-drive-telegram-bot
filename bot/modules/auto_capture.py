@@ -407,11 +407,29 @@ async def auto_capture_listener(client, message):
     except Exception as exc:
         LOGGER.error("Auto capture failed: %s", exc, exc_info=True)
         owner_id = locals().get("owner_id", 0)
+
+        # 判断错误类型，决定是否重试
+        error_msg = str(exc)
+        is_retryable = isinstance(exc, (asyncio.TimeoutError, ConnectionError, OSError))
+
         if owner_id:
             try:
-                error_msg = f" 自动任务创建失败\n错误: {str(exc)}\n\n详情: {exc.__class__.__name__}"
-                await client.send_message(owner_id, error_msg)
-                LOGGER.error("Error message sent to user %s", owner_id)
+                if is_retryable:
+                    retry_msg = (
+                        f"⚠️ 自动任务创建失败（可重试）\n"
+                        f"错误: {error_msg[:100]}\n"
+                        f"系统将在稍后重试"
+                    )
+                else:
+                    retry_msg = (
+                        f"❌ 自动任务创建失败\n"
+                        f"错误: {error_msg[:100]}\n\n"
+                        f"错误类型: {exc.__class__.__name__}\n"
+                        f"消息: {message.link or 'N/A'}"
+                    )
+
+                await client.send_message(owner_id, retry_msg)
+                LOGGER.error("Error message sent to user %s, retryable=%s", owner_id, is_retryable)
             except Exception as send_exc:
                 LOGGER.error("Failed to send error message: %s", send_exc)
 
