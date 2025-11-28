@@ -160,18 +160,28 @@ class MirrorTaskRunner:
             await self._download_from_http()
 
     async def _download_from_http(self) -> None:
-        attempt = 0
-        while True:
-            attempt += 1
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
             try:
+                LOGGER.info("📥 HTTP download attempt %d/%d", attempt, max_retries)
                 await self._perform_http_download()
-                return
+                return  # 成功，返回
             except ValueError as exc:
+                # ValueError 表示不可重试的错误（如 HTTP 4xx）
                 raise exc
             except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
-                if attempt >= 3:
+                if attempt >= max_retries:
+                    LOGGER.error("HTTP download failed after %d attempts: %s", max_retries, exc)
                     raise TaskRetry(str(exc))
-                await asyncio.sleep(min(4 * attempt, 16))
+
+                wait_time = min(2 ** attempt, 16)
+                LOGGER.warning(
+                    "HTTP download failed (attempt %d), retrying in %ds: %s",
+                    attempt,
+                    wait_time,
+                    exc,
+                )
+                await asyncio.sleep(wait_time)
 
     async def _perform_http_download(self) -> None:
         self._stage_start = time.monotonic()
