@@ -338,8 +338,29 @@ async def auto_capture_listener(client, message):
             return
 
         content = " ".join(part for part in [message.text, message.caption] if part)
-        LOGGER.debug("Message content: %r", content[:100] if content else "(empty)")
 
+        # 为没有文本/标题的媒体消息添加隐含关键字
+        if not content:
+            if message.video:
+                content = "video"
+                LOGGER.info("No text/caption found, detected video media, using 'video' as content")
+            elif message.document:
+                content = "document"
+                LOGGER.info("No text/caption found, detected document media, using 'document' as content")
+            elif message.audio:
+                content = "audio"
+                LOGGER.info("No text/caption found, detected audio media, using 'audio' as content")
+            elif message.photo:
+                content = "photo"
+                LOGGER.info("No text/caption found, detected photo media, using 'photo' as content")
+            elif message.voice:
+                content = "voice"
+                LOGGER.info("No text/caption found, detected voice media, using 'voice' as content")
+            else:
+                content = "media"
+                LOGGER.info("No text/caption found, detected media, using 'media' as content")
+
+        LOGGER.debug("Final content for matching: %r", content[:100] if content else "(empty)")
         matched, keywords = _match_monitors(monitors, content)
         LOGGER.info("Monitor match result: matched=%s, keywords=%s", matched, keywords)
 
