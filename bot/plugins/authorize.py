@@ -125,7 +125,7 @@ async def _revoke(client, message):
         await message.reply_text(f"**ERROR:** ```{exc}```", quote=True, parse_mode=ParseMode.MARKDOWN)
 
 
-# @Client.on_message(filters.private & filters.incoming & filters.text)
+@Client.on_message(filters.private & filters.incoming & filters.text)
 async def _token(client, message):
     user_id = message.from_user.id
     entry = pending_flows.get(user_id)
