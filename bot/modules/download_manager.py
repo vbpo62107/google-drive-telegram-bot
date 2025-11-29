@@ -527,6 +527,18 @@ async def _handle_fetch(
 ) -> None:
     """Handle file fetching, uploading, and user feedback."""
     user_id = getattr(message.from_user, "id", None)
+
+    # 认证检查
+    from bot.helpers.sql_helper.gDriveDB import is_authorized
+    if not is_authorized(str(user_id)):
+        await client.send_message(
+            message.chat.id,
+            Messages.NOT_AUTH,
+            reply_to_message_id=message.id
+        )
+        LOGGER.warning("Unauthorized fetch attempt: user=%s", user_id)
+        return
+
     helper = GoogleDriveHelper(user_id)
     status = await client.send_message(
         message.chat.id, Messages.DOWNLOAD_PREPARING, reply_to_message_id=message.id
@@ -693,6 +705,14 @@ async def ytdl_handler(client, message):
         LOGGER.info("ytdl_handler permission denied for user=%s", user_id)
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
         return
+
+    # 认证检查
+    from bot.helpers.sql_helper.gDriveDB import is_authorized
+    if not is_authorized(str(user_id)):
+        await client.send_message(message.chat.id, Messages.NOT_AUTH)
+        LOGGER.warning("Unauthorized ytdl attempt: user=%s", user_id)
+        return
+
     url, _ = _parse_url_argument(message)
     if not url:
         LOGGER.info("No URL provided, sending help message")
