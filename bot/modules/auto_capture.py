@@ -376,34 +376,38 @@ async def auto_capture_listener(client, message):
             LOGGER.warning("Source or file_name is empty, cannot proceed")
             return
 
-        owner_id = await _resolve_owner()
-        if not owner_id:
-            LOGGER.warning("No authorized owner found")
-            await _notify_missing_credentials(client, message, keywords)
-            return
-
-        # 关键修复确保 task_manager 已初始化并启动 worker
-        LOGGER.info("Initializing task_manager...")
+        # 关键修复：为每个匹配的 monitor 创建单独的任务
         await task_manager.initialize(client)
-
-        runner = await task_manager.submit(client, owner_id, owner_id, source, file_name)
-        LOGGER.info("Task created: runner.id=%s, status=%s", runner.id, runner.stage)
-
-        channel_title = message.chat.title or str(message.chat.id)
-        link = message.link or f"tg://{message.chat.id}/{message.id}"
-        summary = (
-            "✅ 自动任务已创建\n"
-            f"ID: {runner.id}\n"
-            f"频道: {channel_title}\n"
-            f"关键字: {', '.join(keywords) if keywords else '-'}\n"
-            f"来源: {link}\n"
-            f"文件: `{file_name}`"
-        )
-        sent = await client.send_message(owner_id, summary, reply_markup=_initial_keyboard(runner.id))
-        await task_manager.update_message_id(runner.id, sent.id)
-        await _update_stage(runner.id, "排队中")
-        await _notify_admins(client, owner_id, runner.id, message, keywords, file_name, source)
-        LOGGER.info("Auto capture completed successfully: runner.id=%s, file=%s", runner.id, file_name)
+        
+        for monitor in matched:
+            monitor_owner_id = monitor.get("user_id")
+            monitor_id = monitor.get("id")
+            
+            if not monitor_owner_id:
+                LOGGER.warning("Monitor %s has no user_id, skipping", monitor_id)
+                continue
+            
+            try:
+                LOGGER.info("Creating task for monitor owner %s, monitor_id=%s", monitor_owner_id, monitor_id)
+                
+                runner = await task_manager.submit(client, monitor_owner_id, monitor_owner_id, source, file_name)
+                LOGGER.info("Task created: runner.id=%s, owner=%s, status=%s", runner.id, monitor_owner_id, runner.stage)
+                
+                channel_title = message.chat.title or str(message.chat.id)
+                link = message.link or f"tg://{message.chat.id}/{message.id}"
+                summary = (
+                    "✅ 自动任务已创建\n"
+                    f"ID: {runner.id}\n"
+                    f"频道: {channel_title}\n"
+                    f"关键字: {', '.join(keywords) if keywords else '-'}\n"
+                    f"来源: {link}\n"
+                    f"文件: `{file_name}`"
+                )
+                sent = await client.send_message(monitor_owner_id, summary, reply_markup=_initial_keyboard(runner.id))
+                await task_manager.update_message_id(runner.id, sent.id)
+                await _update_stage(runner.id, "排队中")
+                await _notify_admins(client, monitor_owner_id, runner.id, message, keywords, file_name, source)
+                LOGGER.info("Auto capture completed for owner %s: runner.id=%s, file=%s", monitor_owner_id, runner.id, file_name)
 
     except Exception as exc:
         LOGGER.error("Auto capture failed: %s", exc, exc_info=True)
