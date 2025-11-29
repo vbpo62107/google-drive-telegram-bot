@@ -302,7 +302,6 @@ class MirrorTaskRunner:
                     message,
                     file_name=self._temp_path,
                     progress=progress,
-                    timeout=300,
                 )
                 LOGGER.info("📥 download_media result: %s", result)
                 break
