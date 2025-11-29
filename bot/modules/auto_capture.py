@@ -7,6 +7,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot import LOGGER, SUDO_USERS
+from bot.config import Messages
 from bot.helpers.sql_helper import get_session
 from bot.helpers.sql_helper.keyword_monitors import (
     create_monitor,
@@ -17,6 +18,7 @@ from bot.helpers.sql_helper.keyword_monitors import (
 )
 from bot.helpers.sql_helper.mirror_tasks import MirrorTask, MirrorTaskStatus
 from bot.helpers.sql_helper import gDriveDB
+from bot.helpers.sql_helper.gDriveDB import is_authorized
 from bot.helpers.utils import extract_filename_from_url
 from bot.modules.task_manager import task_manager
 
@@ -216,6 +218,9 @@ async def add_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
         return
+    if not is_authorized(str(message.from_user.id)):
+        await client.send_message(message.chat.id, Messages.NOT_AUTH)
+        return
     try:
         if len(message.command) < 3:
             await client.send_message(message.chat.id, "⚠️ 用法: /addmonitor <频道ID> <关键字,关键字>")
@@ -244,6 +249,9 @@ async def list_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
         return
+    if not is_authorized(str(message.from_user.id)):
+        await client.send_message(message.chat.id, Messages.NOT_AUTH)
+        return
     try:
         records = await asyncio.to_thread(list_monitors)
         if not records:
@@ -264,6 +272,9 @@ async def list_monitor_handler(client, message):
 async def toggle_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
+        return
+    if not is_authorized(str(message.from_user.id)):
+        await client.send_message(message.chat.id, Messages.NOT_AUTH)
         return
     try:
         if len(message.command) < 2:
@@ -289,6 +300,9 @@ async def toggle_monitor_handler(client, message):
 async def delete_monitor_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
+        return
+    if not is_authorized(str(message.from_user.id)):
+        await client.send_message(message.chat.id, Messages.NOT_AUTH)
         return
     try:
         if len(message.command) < 2:

@@ -10,6 +10,7 @@ from bot.modules.drive_helper import (
     drive_error_message,
     get_drive_instance,
 )
+from bot.helpers.sql_helper.gDriveDB import is_authorized
 
 
 # @Client.on_message(filters.private & filters.incoming & filters.command(BotCommands.Delete) & CustomFilters.auth_users)
@@ -17,6 +18,9 @@ async def _delete(client, message):
     user = message.from_user
     if user is None or user.id not in SUDO_USERS:
         await message.reply_text("⚠️ 您没有权限使用此命令.", quote=True)
+        return
+    if not is_authorized(str(user.id)):
+        await message.reply_text(Messages.NOT_AUTH, quote=True)
         return
     user_id = user.id
     if not (len(message.command) > 1 or message.reply_to_message):
@@ -48,6 +52,9 @@ async def _emptyTrash(client, message):
     user = message.from_user
     if user is None or user.id not in SUDO_USERS:
         await message.reply_text("⚠️ 您没有权限使用此命令.", quote=True)
+        return
+    if not is_authorized(str(user.id)):
+        await message.reply_text(Messages.NOT_AUTH, quote=True)
         return
     user_id = user.id
     LOGGER.info("EmptyTrash: %s", user_id)
