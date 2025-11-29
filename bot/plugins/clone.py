@@ -5,6 +5,7 @@ from pyrogram import Client, filters
 
 from bot import SUDO_USERS
 from bot.config import BotCommands, Messages
+from bot.helpers.sql_helper.gDriveDB import is_authorized
 from bot.helpers.utils import CustomFilters
 from bot.modules.drive_helper import DriveAccessError, drive_error_message, get_drive_instance
 
@@ -13,6 +14,9 @@ from bot.modules.drive_helper import DriveAccessError, drive_error_message, get_
 async def clone_handler(client, message):
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
+        return
+    if not is_authorized(str(message.from_user.id)):
+        await client.send_message(message.chat.id, Messages.NOT_AUTH)
         return
     text = message.text or ""
     parts = text.split(maxsplit=1)
