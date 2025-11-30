@@ -265,7 +265,6 @@ async def list_monitor_handler(client, message):
         )
 
         text = "📋 **当前监控列表:**\n\n"
-
         for monitor in monitors:
             status = "✅ 启用" if monitor["enabled"] else "❌ 禁用"
             keywords = ", ".join(monitor["keywords"]) if monitor["keywords"] else "-"
