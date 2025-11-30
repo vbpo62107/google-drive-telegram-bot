@@ -253,17 +253,40 @@ async def list_monitor_handler(client, message):
         await client.send_message(message.chat.id, Messages.NOT_AUTH)
         return
     try:
-        records = await asyncio.to_thread(list_monitors)
-        if not records:
-            await client.send_message(message.chat.id, "ℹ️ 当前没有监控任务.")
+        monitors = await asyncio.to_thread(list_monitors)
+        if not monitors:
+            await message.reply_text("📋 当前没有启用的监控。")
             return
+
         LOGGER.info(
             "List monitors requested by user %s: count=%s",
             message.from_user.id,
-            len(records),
+            len(monitors),
         )
-        lines = ["📋 当前监控列表:"] + [_format_monitor_line(record) for record in records]
-        await client.send_message(message.chat.id, "\n".join(lines))
+
+        text = "📋 **当前监控列表:**\n\n"
+
+        for monitor in monitors:
+            status = "✅ 启用" if monitor["enabled"] else "❌ 禁用"
+            keywords = ", ".join(monitor["keywords"]) if monitor["keywords"] else "-"
+            creator_id = monitor["user_id"]
+
+            try:
+                user = await client.get_chat(creator_id)
+                creator_name = f"@{user.username}" if user.username else user.first_name
+            except Exception as exc:
+                LOGGER.warning("Failed to fetch creator for %s: %s", creator_id, exc)
+                creator_name = str(creator_id)
+
+            text += (
+                f"🔹 **监听器 #{monitor['id']}**\n"
+                f"   👤 创建者: {creator_name}\n"
+                f"   📡 频道: `{monitor['channel_id']}`\n"
+                f"   ✅ 状态: {status}\n"
+                f"   🔑 关键字: `{keywords}`\n\n"
+            )
+
+        await message.reply_text(text, quote=True)
     except Exception as exc:
         await client.send_message(message.chat.id, f"⚠️ {exc}")
 
