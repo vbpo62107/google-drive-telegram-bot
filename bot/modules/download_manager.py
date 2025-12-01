@@ -25,6 +25,8 @@ from pyrogram.file_id import FileId
 
 from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS, LOGGER
 from bot.config import BotCommands, Messages
+from bot.utils.messages_utils import render_permission_error, MessageTemplate
+from bot.utils.error_codes import get_error_message, get_error_code_by_exception
 from bot.helpers.utils import humanbytes, get_floodwait_seconds
 from bot.modules.drive_helper import DriveAccessError, drive_error_message
 from bot.modules.gdriveTools import GoogleDriveHelper
