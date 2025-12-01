@@ -24,6 +24,8 @@ from pyrogram.errors import AuthBytesInvalid, FloodWait, RPCError
 from pyrogram.file_id import FileId
 
 from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS, LOGGER
+from bot.utils.messages_utils import render_permission_error, MessageTemplate
+from bot.utils.error_codes import get_error_message, get_error_code_by_exception
 from bot.config import BotCommands, Messages
 from bot.helpers.utils import humanbytes, get_floodwait_seconds
 from bot.modules.drive_helper import DriveAccessError, drive_error_message
@@ -647,9 +649,10 @@ async def _handle_fetch(
         await client.edit_message_text(message.chat.id, status.id, error_msg)
 
     except Exception as exc:
-        error_msg = Messages.DOWNLOAD_FAILED.format(str(exc))
-        LOGGER.exception("Unexpected error for user=%s: %s", user_id, str(exc))
+        error_code = get_error_code_by_exception(exc)
+        error_msg = get_error_message(error_code, str(exc))
         await client.edit_message_text(message.chat.id, status.id, error_msg)
+        LOGGER.exception("Unexpected error for user=%s: %s", user_id, str(exc))
 
     finally:
         # 清理临时文件
@@ -669,7 +672,8 @@ async def download_handler(client, message):
         message.text,
     )
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
-        await client.send_message(message.chat.id, "⚠️ 您没有权限使用此命令.")
+        msg = render_permission_error("此命令", "使用")
+        await client.send_message(message.chat.id, msg)
         return
     if message.reply_to_message and message.reply_to_message.media:
         _, name = _parse_url_argument(message)
@@ -700,12 +704,15 @@ async def ytdl_handler(client, message):
             message.chat.id,
             message.text,
         )
+        msg = render_permission_error("此命令", "使用")
+        await client.send_message(message.chat.id, msg)
         return
     user_id = message.from_user.id
     LOGGER.info("Checking permissions: user=%s", user_id)
     if user_id not in SUDO_USERS:
         LOGGER.info("ytdl_handler permission denied for user=%s", user_id)
-        await client.send_message(message.chat.id, "❌ 您没有权限使用此命令.")
+        msg = render_permission_error("此命令", "使用")
+        await client.send_message(message.chat.id, msg)
         return
 
     # 认证检查
