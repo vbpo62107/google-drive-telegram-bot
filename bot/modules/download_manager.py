@@ -477,6 +477,7 @@ class YtDlpFetcher(Fetcher):
 
     def _extract_info(self, url: str, temp_dir: Path) -> dict:
         options = {
+            "cookiefile": "/app/cookies.txt",
             "skip_download": True,
             "quiet": True,
             "no_warnings": True,
@@ -490,6 +491,7 @@ class YtDlpFetcher(Fetcher):
 
     def _download(self, url: str, temp_dir: Path) -> Optional[str]:
         options = {
+            "cookiefile": "/app/cookies.txt",
             "outtmpl": str(temp_dir / "%(title)s.%(ext)s"),
             "quiet": True,
             "no_warnings": True,
