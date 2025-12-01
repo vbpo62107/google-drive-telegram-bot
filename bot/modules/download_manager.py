@@ -112,7 +112,7 @@ class DirectLinkFetcher(Fetcher):
                     if mime_type and not self._is_allowed_type(mime_type):
                         raise FetchError(Messages.DOWNLOAD_TYPE_NOT_ALLOWED)
                 finally:
-                    head.close()
+                    await head.aclose()
             try:
                 response, final_url = await self._follow_redirects(
                     session, "GET", url, headers, resolver_cache, stream=True
