@@ -178,7 +178,7 @@ class DirectLinkFetcher(Fetcher):
         except httpx.RequestError:
             return None
         if response.is_error:
-            response.close()
+            await response.aclose()
             return None
         return response
 
@@ -252,32 +252,20 @@ class DirectLinkFetcher(Fetcher):
             if response.is_redirect:
                 location = response.headers.get("Location")
                 if not location:
-                    if stream:
-                        await response.aclose()
-                    else:
-                        response.close()
+                    await response.aclose()
                     raise FetchError(Messages.DOWNLOAD_REDIRECT_NO_TARGET)
                 next_url = urljoin(str(response.request.url), location)
                 await self._assert_safe_destination(next_url, cache)
                 try:
                     normalized = str(httpx.URL(next_url))
                 except httpx.InvalidURL as exc:
-                    if stream:
-                        await response.aclose()
-                    else:
-                        response.close()
+                    await response.aclose()
                     raise FetchError(Messages.DOWNLOAD_REDIRECT_INVALID) from exc
                 if normalized in visited:
-                    if stream:
-                        await response.aclose()
-                    else:
-                        response.close()
+                    await response.aclose()
                     raise FetchError(Messages.DOWNLOAD_REDIRECT_LOOP)
                 visited.add(normalized)
-                if stream:
-                    await response.aclose()
-                else:
-                    response.close()
+                await response.aclose()
                 current = normalized
                 continue
             return response, str(response.request.url)
