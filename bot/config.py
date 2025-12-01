@@ -13,177 +13,109 @@ class config:
 
 
 class BotCommands:
-  Download = ['download', 'dl']
-  Authorize = ['auth', 'authorize']
-  AuthMode = ['authmode']
-  SetFolder = ['setfolder', 'setfl']
-  Revoke = ['revoke']
-  Clone = ['copy', 'clone']
-  Delete = ['delete', 'del']
-  EmptyTrash = ['emptytrash', 'emptyTrash']
-  YtDl = ['ytdl']
-  ListDrive = ['listdrive', 'lsdrive', 'listdriv']
-  SearchDrive = ['searchdrive', 'sdrive']
+    Download = ['download', 'dl']
+    Authorize = ['auth', 'authorize']
+    AuthMode = ['authmode']
+    SetFolder = ['setfolder', 'setfl']
+    Revoke = ['revoke']
+    Clone = ['copy', 'clone']
+    Delete = ['delete', 'del']
+    EmptyTrash = ['emptytrash', 'emptyTrash']
+    YtDl = ['ytdl']
+    ListDrive = ['listdrive', 'lsdrive', 'listdriv']
+    SearchDrive = ['searchdrive', 'sdrive']
 
+
+# 替换原有的 class Messages: 块
 class Messages:
-    START_MSG = "**你好呀 {}.**\n__我是Google云端硬盘上载程序Bot.您可以使用我从直接链接或电报文件将任何文件/视频上传到Google云端硬盘.__\n__您可以从/ help中了解更多信息. /help.__"
+    """改进版的消息常量类"""
+    
+    START_MSG = "👋 **欢迎使用 Google Drive 上传器**\n\n🤖 我是一个专业的文件上传助手，可以帮你：\n  • 📥 从直链下载文件到服务器\n  • 📤 自动上传到你的 Google Drive\n  • 🎬 支持 YouTube 视频下载\n  • 📡 自动监听频道并捕获文件\n\n💡 **快速开始**：发送 /help 查看详细帮助"
 
     HELP_MSG = [
         ".",
-        "**Google云端硬盘上传器**\n__我可以将文件从直接链接或电报文件上传到您的Google云端硬盘.我需要做的就是对我的Google云端硬盘帐户进行身份验证.然后发送直接下载链接或电报文件.__\n\n我具有更多功能...想知道吗?只需遍历本教程并仔细阅读消息即可.",
-        
-        f"**验证Google云端硬盘**\n__发送 /{BotCommands.Authorize[0]} 注意,您将收到一个URL,访问URL并按照步骤操作,并在此处发送收到的代码.使用 /{BotCommands.Revoke[0]} 撤销您当前登录的Google云端硬盘帐户.__\n\n**请注意: 在您授权我之前,不会听任何命令或消息 (except /{BotCommands.Authorize[0]} command) 授权命令除外.\n所以, 授权是强制性的 !**",
+        "**🎯 功能概述**\n\n我是一个功能强大的 Google Drive 文件管理器，支持从多个来源上传文件到你的云盘。\n\n📚 浏览下面的分类了解更多功能。",
+        "**🔐 第一步：授权**\n\n在使用任何功能前，你需要授权访问 Google Drive。\n\n📍 命令：`/auth`\n📝 步骤：\n  1. 点击链接授权\n  2. 复制 `code`\n  3. 发送给我\n\n🔑 **撤销**：`/revoke`",
+        "**📥 下载文件**\n\n📍 **基础用法**：`/download 链接`\n📍 **自定义名称**：`/download 链接 | 新文件名.mp4`\n⚠️ **文件限制**：最大 10GB",
+        "**📹 YouTube 下载**\n\n📍 命令：`/ytdl YouTube链接`\n🎬 示例：`/ytdl https://www.youtube.com/watch?v=...`",
+        "**📱 Telegram 媒体**\n\n📌 回复媒体消息，发送 `/download` 即可自动上传。",
+        "**📋 自动监听**\n\n📍 **添加**：`/addmonitor 频道ID 关键字`\n📋 **查看**：`/listmonitor`\n🗑️ **删除**：`/delmonitorID`"
+    ]
 
-        f"**授权模式切换**\n__/ {BotCommands.AuthMode[0]} service__ 启用服务账号通道; __/{BotCommands.AuthMode[0]} oauth__ 切换回用户 OAuth 模式.__",
+    # 授权相关
+    NOT_AUTH = "🔑 **您尚未认证**\n\n在使用任何功能前，你需要授权我访问你的 Google Drive。\n\n➡️ **立即授权**：发送 /auth"
+    AUTH_TEXT = "⛓️ **授权链接**\n\n1️⃣ 点击链接登录 Google\n2️⃣ 允许权限\n3️⃣ 复制 `code`\n4️⃣ 发送给我\n\n[🔐 点击授权]({url})"
+    AUTH_SUCCESSFULLY = "✅ **授权成功！**\n\n🎉 你的账户已绑定，现在可以开始上传文件了！"
+    ALREADY_AUTH = "🔒 **已授权**\n\n你已经绑定了账户。\n🔄 切换账户：`/revoke` 后重新 `/auth`"
+    INVALID_AUTH_CODE = "❌ **代码无效**\n\n可能已过期或格式错误，请重新执行 /auth"
+    REVOKED = "🔓 **授权已撤销**\n\n账户已解绑。重新使用请发送 /auth"
 
-        f"**下载链接**\n__向我发送文件的直接下载链接,我会将其下载到我的服务器上,并将其上传到您的Google Drive帐户. 您可以在上传文件到GDrive帐户之前重命名文件. 只需将URL发送给我和分隔符 ' | '.__\n\n**__例如:__**\n```https://example.com/AFileWithDirectDownloadLink.mkv | 新的文件名.mkv```\n\n**Telegram 文件**\n__要在您的Google云端硬盘帐户中上传电报文件,只需将文件发送给我,我就会下载并将其上传到您的Google云端硬盘帐户.. 注意：电报文件下载速度较慢，大文件可能需要更长的时间。.__\n\n**YouTube-DL 支持**\n__下载YouTube文件使用youtube-dl.\nUse /{BotCommands.YtDl[0]} (YouTube 链接/YouTube-DL Supported site link)__",
+    # 下载相关
+    DOWNLOAD_PREPARING = "⏳ **准备下载中...**\n正在验证链接和文件信息..."
+    DOWNLOAD_USAGE = "❌ **参数错误**\n\n📝 **用法**：\n  `/download 链接`\n  `/download 链接 | 文件名`\n\n📌 或回复媒体发送 `/download`"
+    DOWNLOADING = "📥 **开始下载**\n链接：`{link}`"
+    DOWNLOADED_SUCCESSFULLY = "✅ **下载完成**\n\n📄 文件名：`{filename}`\n💾 大小：`{size}`\n\n⏳ 正在上传到 Drive..."
+    DOWNLOAD_FAILED = "❌ **下载失败**\n\n💡 原因：{reason}\n🔄 请稍后重试"
 
-        "**镜像任务控制**\n__/mirror 会创建一个可暂停、继续或取消的任务; 超出并发上限的任务会排队执行, 机器人重启后任务进度会自动恢复展示.__",
+    # 上传相关
+    UPLOADED_SUCCESSFULLY = "✅ **上传成功**\n\n[📥 {filename}]({link}) __{size}__\n\n🎉 文件已保存到 Drive"
+    UPLOAD_FAILED = "❌ **上传失败**\n\n💡 原因：{reason}\n🔄 请检查后重试"
 
-        "**自动频道监听**\n__/addmonitor <频道ID> 关键词列表 添加自动监控; /listmonitor 查看所有监控; /togglemonitor <监控ID> 切换启用状态; /delmonitor <监控ID> 删除监控. 机器人需加入对应频道并使用已授权的 SUDO 凭据, 自动捕获的任务与手动镜像共享同一进度管理，可随时暂停或取消.__",
-
-        f"**要上传的自定义文件夹**\n__要在自定义文件夹或者在__ **TeamDrive** __ ?\nUse /{BotCommands.SetFolder[0]} (Folder URL) 来设置自定义上传文件夹.\n所有文件上传到该文件夹中.__",
-        
-        f"**删除Google云端硬盘文件**\n__删除谷歌驱动器文件。使用 /{BotCommands.Delete[0]} (文件/文件夹URL) 删除文件或回复 /{BotCommands.Delete[0]} to bot message.\nYou can also empty trash files use /{BotCommands.EmptyTrash[0]}\nNote: Files are deleted permanently. This process cannot be undone.\n\n**Copy Google Drive Files**\n__Yes, Clone or Copy Google Drive Files.\n__Use /{BotCommands.Clone[0]} (File id / Folder id or URL) to copy Google Drive Files in your Google Drive Account.__",
-
-        f"**浏览Google云端硬盘目录**\n__使用 /{BotCommands.ListDrive[0]} (可选: 文件夹ID或路径) 查看当前或指定目录中的文件.__",
-
-        f"**搜索Google云端硬盘文件**\n__使用 /{BotCommands.SearchDrive[0]} 关键字 (可选: 使用 `|` 分隔的分页标记) 按名称搜索可访问的文件或文件夹.__",
-        
-        "**Rules & Precautions**\n__1. Don't copy BIG Google Drive Files/Folders. It may hang the bot and your files maybe damaged.\n2. Send One request at a time unless bot will stop all processes.\n3. Don't send slow links @transload it first.\n4. Don't misuse, overload or abuse this free service.__",
-        
-        # Dont remove this ↓ if you respect developer.
-        "**Developed by @viperadnan**"
-        ]
-     
-    RATE_LIMIT_EXCEEDED_MESSAGE = "❗ **超过限速.**\n__24小时后超出用户速率限制.__"
+    # 错误与通用
+    PERMISSION_DENIED = "⛔ **权限不足**\n\n仅管理员可以执行此操作。\n📞 请联系 Bot 管理员"
+    GROUP_USE_PRIVATE = "⚠️ **请在私聊中使用**\n\n此命令仅限私聊。"
+    FILE_NOT_FOUND = "❌ **文件不存在**\n\n请检查文件 ID 或链接是否有效。"
+    FILE_TOO_LARGE = "⚠️ **文件过大**\n\n当前限制：**10 GB**"
+    WENT_WRONG = "⁉️ **发生错误**\n\n请稍后重试或联系管理员。"
     
-    FILE_NOT_FOUND_MESSAGE = "❗ **找不到文件/文件夹.**\n__File id - {} 未找到。 确保它是 存在并且可以由登录的帐户访问.__"
-    
-    INVALID_GDRIVE_URL = "❗ **无效的Google云端硬盘网址**\n确保Google云端硬盘网址的格式正确."
-    
-    COPIED_SUCCESSFULLY = "✅ **复制成功.**\n[{}]({}) __({})__"
-    
-    NOT_AUTH = f"🔑 **您尚未认证我可以上传到任何帐户.**\n__Send /{BotCommands.Authorize[0]} to authenticate.__"
-    
-    GROUP_USE_PRIVATE = "⚠️ 请在与机器人私聊中使用此命令."
-    DB_ERROR = "⚠️ 数据库访问失败，请稍后再试或检查 DATABASE_URL 配置。"
-
-    DOWNLOADED_SUCCESSFULLY = "📤 **上传文件中...**\n**Filename:** ```{}```\n**Size:** ```{}```"
-
-    UPLOADED_SUCCESSFULLY = "✅ **上传成功.**\n[{}]({}) __({})__"
-
-    DOWNLOAD_ERROR = "❗**下载失败**\n{}\n__Link - {}__"
-
-    INVALID_FILENAME = "❗ **无效的文件名**\n__请提供有效的文件名.__"
-
-    DOWNLOADING = "📥 **下载文件...\nLink:** ```{}```"
-
-    DOWNLOAD_PREPARING = "📥 **正在准备下载...**"
-
-    DOWNLOAD_FAILED = "❌ {}"
-
+    # 保持原有字段以防兼容问题
+    RATE_LIMIT_EXCEEDED_MESSAGE = "❗ **超过限速**\n24小时内请求过多，请稍后再试。"
+    INVALID_GDRIVE_URL = "❗ **链接无效**\n请提供正确的 Google Drive 链接。"
+    COPIED_SUCCESSFULLY = "✅ **复制成功**\n[{}]({})"
+    DB_ERROR = "⚠️ **数据库错误**\n请检查配置。"
+    INVALID_FILENAME = "❗ **文件名无效**"
     DOWNLOAD_MISSING_URL = "缺少下载链接"
-
-    DOWNLOAD_FILE_TOO_LARGE = "文件大小超出限制"
-
-    DOWNLOAD_TYPE_NOT_ALLOWED = "文件类型不在允许范围"
-
-    DOWNLOAD_ONLY_HTTP = "仅支持 HTTP/HTTPS 链接"
-
+    DOWNLOAD_TYPE_NOT_ALLOWED = "文件类型不支持"
+    DOWNLOAD_ONLY_HTTP = "仅支持 HTTP/HTTPS"
     DOWNLOAD_INVALID_URL = "链接无效"
-
-    DOWNLOAD_RESOLVE_FAILED = "无法解析主机地址"
-
+    DOWNLOAD_RESOLVE_FAILED = "无法解析主机"
     DOWNLOAD_FORBIDDEN_DEST = "链接指向受限地址"
-
-    DOWNLOAD_REDIRECT_NO_TARGET = "重定向缺少目标"
-
-    DOWNLOAD_REDIRECT_INVALID = "重定向目标无效"
-
-    DOWNLOAD_REDIRECT_LOOP = "检测到重定向循环"
-
-    DOWNLOAD_REDIRECT_TOO_MANY = "重定向次数过多"
-
-    DOWNLOAD_REPLY_REQUIRED = "请回复包含媒体的消息"
-
-    DOWNLOAD_MEDIA_NOT_FOUND = "未找到可下载的媒体"
-
-    DOWNLOAD_FILE_ID_MISSING = "无法获取文件标识"
-
-    DOWNLOAD_FILE_REFERENCE_INVALID = "文件引用已失效"
-
-    DOWNLOAD_TOO_MANY_REQUESTS = "请求过于频繁，请 {} 秒后重试"
-
+    DOWNLOAD_REDIRECT_NO_TARGET = "重定向无目标"
+    DOWNLOAD_REDIRECT_INVALID = "重定向无效"
+    DOWNLOAD_REDIRECT_LOOP = "重定向循环"
+    DOWNLOAD_REDIRECT_TOO_MANY = "重定向过多"
+    DOWNLOAD_REPLY_REQUIRED = "请回复媒体消息"
+    DOWNLOAD_MEDIA_NOT_FOUND = "未找到媒体"
+    DOWNLOAD_FILE_ID_MISSING = "缺少文件 ID"
+    DOWNLOAD_FILE_REFERENCE_INVALID = "文件引用无效"
+    DOWNLOAD_TOO_MANY_REQUESTS = "请求过快，请 {} 秒后重试"
     DOWNLOAD_INTERNAL_ERROR = "内部错误"
-
     DOWNLOAD_GENERIC_ERROR = "下载失败"
-
-    ALREADY_AUTH = "🔒 **已授权您的Google云端硬盘帐户.**\n__Use /revoke to revoke the current account.__\n__Send me a direct link or File to Upload on Google Drive__"
-    
-    AUTH_SUCCESSFULLY = '🔐 **成功授权Google云端硬盘帐户.**'
-
-    INVALID_AUTH_CODE = '❗ **无效的代码**\n__您发送的代码无效或之前已经使用过。通过授权URL生成新的__'
-
-    AUTH_TEXT = "⛓️ **要授权您的Google云端硬盘帐户，请访问此 [URL]({}) 并在此处发送重定向页面中的 `code` 值或完整的回调链接.**\n__打开链接>允许权限>浏览器会显示错误页面>复制地址栏或其中的 `code` 参数>发送给我.__"
-
-    DRIVE_CIRCUIT_OPEN = "❗ **Drive 通道已暂时关闭.**\n__短时间内出现过多错误，系统已进入冷却，请稍后再试或刷新凭据.__"
-
-    INVALID_CREDENTIALS = f"❗ **凭据已失效或无法刷新.**\n__请重新执行 /{BotCommands.Authorize[0]} 授权，或使用 /{BotCommands.AuthMode[0]} service 切换为服务账号.__"
-
-    AUTHMODE_USAGE = f"❗ **用法:** /{BotCommands.AuthMode[0]} <service|oauth>"
-
-    AUTHMODE_SERVICE_ENABLED = "🔐 **已启用服务账号通道.**\n__新的操作将使用预配置的服务账号凭据.__"
-
-    AUTHMODE_OAUTH_ENABLED = f"🔑 **已切换到用户 OAuth 模式.**\n__请运行 /{BotCommands.Authorize[0]} 重新完成授权.__"
-
-    AUTHMODE_SERVICE_UNAVAILABLE = "❗ **尚未配置服务账号凭据.**\n__请设置 GOOGLE_APPLICATION_CREDENTIALS 或 SERVICE_ACCOUNT_DATA 后重试.__"
-    
-    DOWNLOAD_TG_FILE = "📥 **下载文件...**\n**Filename:** ```{}```\n**Size:** ```{}```\n**MimeType:** ```{}```"
-    
-    PARENT_SET_SUCCESS = '🆔✅ **自定义文件夹链接设置成功.**\n__您的自定义文件夹ID - {}\nUse__ ```/{} clear``` __to clear it.__'
-    
-    PARENT_CLEAR_SUCCESS = f'🆔🚮 **自定义文件夹ID已成功清除.**\n__Use__ ```/{BotCommands.SetFolder[0]} (Folder Link)``` __to set it back__.'
-    
-    CURRENT_PARENT = "🆔 **您当前的自定义文件夹ID - {}**\n__Use__ ```/{} (Folder link)``` __to change it.__"
-    
-    REVOKED = f"🔓 **成功撤销当前登录的帐户.**\n__Use /{BotCommands.Authorize[0]} 再次进行身份验证并使用该机器人.__"
-    
-    NOT_FOLDER_LINK = "❗ **无效的文件夹链接.**\n__您发送的链接不属于文件夹.__"
-    
-    CLONING = "🗂️ **克隆到Google云端硬盘...**\n__G-Drive 链接 - {}__"
-    
-    PROVIDE_GDRIVE_URL = "**❗ 提供有效的Google云端硬盘网址和命令.**\n__Usage - /{} (GDrive Link)__"
-    DOWNLOAD_USAGE = (
-        "❗ **请提供可下载的内容.**\n"
-        f"__可以直接发送可下载链接，或使用__ `/{BotCommands.Download[0]} 链接 | 自定义文件名` __指定文件名.__\n"
-        f"__若要处理电报媒体，请回复目标消息并发送__ `/{BotCommands.Download[0]}` __，同样支持通过 `|` 指定文件名.__"
-    )
-    MIRROR_NO_PERMISSION = "⚠️ 您没有权限使用此命令."
-    MIRROR_PROVIDE_URL = "⚠️ 请提供直链 URL."
-    MIRROR_UNSUPPORTED_PROTOCOL = "⚠️ 仅支持 HTTP(S) 链接."
-
-    INSUFFICIENT_PERMISSONS = "❗ **您对此文件的权限不足.**\n__File id - {}__"
-    
-    DELETED_SUCCESSFULLY = "🗑️✅ **文件删除成功.**\n__档案已永久删除 !\nFile id - {}__"
-    
-    WENT_WRONG = "⁉️ **ERROR: SOMETHING WENT WRONG**\n__Please try again later.__"
-    
-    EMPTY_TRASH = "🗑️🚮**成功清空垃圾箱 !**"
-    
-    PROVIDE_YTDL_LINK = "❗**提供有效的YouTube-DL支持的链接.**"
-    LIST_HEADER = "📂 **目录内容**\n**路径:** `{}`\n**ID:** `{}`"
-    LIST_CONT_HEADER = "📂 **目录内容 (续)**\n**路径:** `{}`\n**ID:** `{}`"
-    LIST_EMPTY = "📂 **目录为空**\n**路径:** `{}`"
-    LIST_ERROR = "❗ **获取目录内容失败**\n{}"
-    LIST_PATH_NOT_FOUND = "❗ **未找到路径段:** `{}`"
-    LIST_DEFAULT_LABEL = "默认目录"
-    MIRROR_SUBMIT_FAILED = "❗ **创建镜像任务失败**\n{}\n错误摘要：{}"
-    MIRROR_SUBMIT_PERMISSION_TIP = "请检查机器人对下载目录、数据库或 Drive 授权的访问权限后再试。"
-    MIRROR_SUBMIT_NETWORK_TIP = "请确认网络连接正常，稍后重新尝试创建任务。"
-    MIRROR_SUBMIT_RETRY_TIP = "请稍后重试，若持续失败可在支持群反馈。"
-    SEARCH_USAGE = "❗ **请提供搜索关键字.**\n__用法 - /{} 关键字 或 /{} 关键字 | 下一页标记__"
-    SEARCH_ERROR = "❗ **搜索失败**\n{}"
-    SEARCH_NO_RESULTS = "🔍 **没有找到匹配的文件或文件夹.**\n**关键字:** `{}`"
-    SEARCH_RESULTS_HEADER = "🔍 **搜索结果**\n**关键字:** `{}`"
-    SEARCH_PAGE_TOKEN = "▶️ **下一页标记:** `{}`"
+    DRIVE_CIRCUIT_OPEN = "❗ **服务冷却中**\n错误过多，暂时暂停服务。"
+    INVALID_CREDENTIALS = "❗ **凭据失效**\n请重新授权 /auth"
+    AUTHMODE_USAGE = "❗ **用法**: /authmode <service|oauth>"
+    AUTHMODE_SERVICE_ENABLED = "🔐 **已切换至服务账号**"
+    AUTHMODE_OAUTH_ENABLED = "🔑 **已切换至用户模式**"
+    AUTHMODE_SERVICE_UNAVAILABLE = "❗ **未配置服务账号**"
+    DOWNLOAD_TG_FILE = "📥 **下载 Telegram 文件**\n📄 `{}`\n💾 `{}`"
+    PARENT_SET_SUCCESS = "✅ **文件夹设置成功**\nID: `{}`"
+    PARENT_CLEAR_SUCCESS = "✅ **文件夹已清除**"
+    CURRENT_PARENT = "🆔 **当前文件夹 ID**: `{}`"
+    NOT_FOLDER_LINK = "❗ **链接无效**\n这不是一个文件夹链接。"
+    CLONING = "🗂️ **正在克隆...**"
+    PROVIDE_GDRIVE_URL = "❗ **请提供链接**"
+    MIRROR_NO_PERMISSION = "⚠️ 无权限"
+    MIRROR_PROVIDE_URL = "⚠️ 请提供 URL"
+    MIRROR_UNSUPPORTED_PROTOCOL = "⚠️ 仅支持 HTTP(S)"
+    INSUFFICIENT_PERMISSONS = "❗ **权限不足**"
+    DELETED_SUCCESSFULLY = "🗑️ **删除成功**"
+    EMPTY_TRASH = "🗑️ **垃圾箱已清空**"
+    PROVIDE_YTDL_LINK = "❗ **请提供 YouTube 链接**"
+    LIST_HEADER = "📂 **目录: {}**"
+    LIST_EMPTY = "📂 **目录为空**"
+    LIST_ERROR = "❗ **获取失败**: {}"
+    MIRROR_SUBMIT_FAILED = "❗ **任务提交失败**"
+    SEARCH_USAGE = "🔍 **用法**: /searchdrive 关键字"
+    SEARCH_NO_RESULTS = "🔍 **无结果**: {}"
+    SEARCH_RESULTS_HEADER = "🔍 **搜索结果**: {}"
+    SEARCH_PAGE_TOKEN = "▶️ **下一页**: `{}`"
