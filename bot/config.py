@@ -119,3 +119,35 @@ class Messages:
     SEARCH_NO_RESULTS = "🔍 **无结果**: {}"
     SEARCH_RESULTS_HEADER = "🔍 **搜索结果**: {}"
     SEARCH_PAGE_TOKEN = "▶️ **下一页**: `{}`"
+
+    # ━━━━━━━━━━━━━━━━━━━ 文件列表相关 ━━━━━━━━━━━━━━━━━━━
+    LIST_DEFAULT_LABEL = "默认目录"
+    LIST_CONT_HEADER = "📂 **目录内容 (续)**\n**路径:** `{}`\n**ID:** `{}`"
+    LIST_PATH_NOT_FOUND = "❗ **未找到路径段:** `{}`"
+    LIST_ERROR = "❗ **获取目录内容失败**\n{}"
+
+    # 搜索相关
+    SEARCH_USAGE = "❗ **请提供搜索关键字**\n__用法 - /{} 关键字 或 /{} 关键字 | 下一页标记__"
+    SEARCH_ERROR = "❗ **搜索失败**\n{}"
+    SEARCH_NO_RESULTS = "🔍 **没有找到匹配的文件或文件夹**\n**关键字:** `{}`"
+    SEARCH_RESULTS_HEADER = "🔍 **搜索结果**\n**关键字:** `{}`"
+    SEARCH_PAGE_TOKEN = "▶️ **下一页标记:** `{}`"
+
+    # 镜像和任务相关
+    MIRROR_SUBMIT_FAILED = "❗ **创建镜像任务失败**\n{}\n错误摘要：{}"
+    MIRROR_SUBMIT_PERMISSION_TIP = "请检查机器人对下载目录、数据库或 Drive 授权的访问权限后再试。"
+    MIRROR_SUBMIT_NETWORK_TIP = "请确认网络连接正常，稍后重新尝试创建任务。"
+    MIRROR_SUBMIT_RETRY_TIP = "请稍后重试，若持续失败可在支持群反馈。"
+
+    # 文件夹相关
+    PARENT_SET_SUCCESS = '🆔✅ **自定义文件夹链接设置成功**\n__您的自定义文件夹ID - {}\nUse__ `````` __to clear it.__'
+    PARENT_CLEAR_SUCCESS = f'🆔🚮 **自定义文件夹ID已成功清除**\n__Use__ `````` __to set it back__.'
+    CURRENT_PARENT = "🆔 **您当前的自定义文件夹ID - {}**\n__Use__ `````` __to change it.__"
+
+    # 其他杂项
+    INSUFFICIENT_PERMISSONS = "❗ **您对此文件的权限不足**\n__File id - {}__"
+    DELETED_SUCCESSFULLY = "🗑️✅ **文件删除成功**\n__File id - {}__"
+    EMPTY_TRASH = "🗑️🚮**成功清空垃圾箱 !**"
+    PROVIDE_YTDL_LINK = "❗**提供有效的YouTube-DL支持的链接**"
+    MONITOR_NOT_FOUND = "❌ **监听项不存在**\n\n请检查监听 ID 是否正确\n使用 /listmonitor 查看所有监听"
+    CLONING = "🗂️ **克隆到Google云端硬盘...**\n__G-Drive 链接 - {}__"
