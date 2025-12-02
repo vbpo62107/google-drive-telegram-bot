@@ -516,9 +516,9 @@ class GoogleDrive:
                 raise RuntimeError("Upload response missing file_id")
 
             return Messages.UPLOADED_SUCCESSFULLY.format(
-                filename,
-                self.__G_DRIVE_BASE_DOWNLOAD_URL.format(file_id),
-                filesize,
+                filename=filename,
+                link=self.__G_DRIVE_BASE_DOWNLOAD_URL.format(file_id),
+                size=filesize,
             )
         except HttpError as err:
             LOGGER.error("upload_file: HttpError: %s", str(err), exc_info=True)
@@ -619,9 +619,9 @@ class GoogleDrive:
             file_id = uploaded_file.get("id")
             filesize = format_bytes(total_size)
             return Messages.UPLOADED_SUCCESSFULLY.format(
-                filename,
-                self.__G_DRIVE_BASE_DOWNLOAD_URL.format(file_id),
-                filesize,
+                filename=filename,
+                link=self.__G_DRIVE_BASE_DOWNLOAD_URL.format(file_id),
+                size=filesize,
             )
         except RetryError as err:
             LOGGER.info("Total Attempts: %s", err.last_attempt.attempt_number)
