@@ -552,7 +552,10 @@ async def _handle_fetch(
         await client.edit_message_text(
             message.chat.id,
             status.id,
-            Messages.DOWNLOADED_SUCCESSFULLY.format(result.name, humanbytes(result.size)),
+            Messages.DOWNLOADED_SUCCESSFULLY.format(
+                filename=result.name,
+                size=humanbytes(result.size),
+            ),
         )
 
         # 开始上传
