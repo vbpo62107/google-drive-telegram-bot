@@ -768,10 +768,13 @@ async def ytdl_handler(client, message):
         # 【新增】显示清晰度选择界面
         try:
             LOGGER.info("About to show quality selector for title: %s", video_title)
+            qualities_count = len(YtDlpQualitySelector.extract_formats(info))
+            LOGGER.info("Found %d qualities", qualities_count)
+
             result = await YtDlpQualitySelector.show_quality_selector(
                 client, message, info, video_title
             )
-            LOGGER.info("Quality selector shown successfully")
+            LOGGER.info("Quality selector shown successfully: %s", result)
         except Exception as selector_exc:
             LOGGER.error("Failed to show quality selector: %s", str(selector_exc), exc_info=True)
             await client.send_message(message.chat.id, f"❌ 显示清晰度选择失败: {str(selector_exc)}")

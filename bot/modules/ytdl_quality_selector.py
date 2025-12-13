@@ -65,7 +65,9 @@ class YtDlpQualitySelector:
             key=lambda x: int(x.resolution.split('x')[1]),
             reverse=True
         )
-        
+
+        LOGGER.info("Returning %d quality options", len(sorted_qualities[:8]))
+
         return sorted_qualities[:8]
     
     @staticmethod
