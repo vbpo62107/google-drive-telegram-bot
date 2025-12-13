@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import cgi
 import contextlib
 import ipaddress
@@ -25,6 +25,8 @@ from pyrogram.file_id import FileId
 
 from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS, LOGGER
 from bot.config import BotCommands, Messages
+from bot.utils.cache import video_cache
+from bot.modules.ytdl_quality_selector import YtDlpQualitySelector
 from bot.utils.messages_utils import render_permission_error, MessageTemplate
 from bot.utils.error_codes import get_error_message, get_error_code_by_exception
 from bot.helpers.utils import humanbytes, get_floodwait_seconds
@@ -434,6 +436,7 @@ class YtDlpFetcher(Fetcher):
 
     async def fetch(self, client: Client, message, **kwargs) -> FetchResult:
         url = kwargs.get("url")
+        format_id = kwargs.get("format_id")
         if not url:
             raise FetchError(Messages.DOWNLOAD_MISSING_URL)
         async with self._semaphore:
@@ -444,7 +447,7 @@ class YtDlpFetcher(Fetcher):
                 estimate = info.get("filesize") or info.get("filesize_approx")
                 if estimate and estimate > self.max_size:
                     raise FetchError(Messages.DOWNLOAD_FILE_TOO_LARGE)
-                path = await loop.run_in_executor(None, lambda: self._download(url, temp_dir))
+                path = await loop.run_in_executor(None, lambda: self._download(url, temp_dir, format_id))
                 if not path or not os.path.exists(path):
                     raise FetchError(Messages.DOWNLOAD_GENERIC_ERROR)
                 size = os.path.getsize(path)
@@ -479,7 +482,10 @@ class YtDlpFetcher(Fetcher):
         metadata_path.write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
         return info
 
-    def _download(self, url: str, temp_dir: Path) -> Optional[str]:
+    def _download(self, url: str, temp_dir: Path, format_id: Optional[str]) -> Optional[str]:
+        format_selector = None
+        if format_id:
+            format_selector = "bestaudio" if format_id == "audio" else format_id
         options = {
             "cookiefile": "/app/cookies.txt",
             "outtmpl": str(temp_dir / "%(title)s.%(ext)s"),
@@ -489,6 +495,8 @@ class YtDlpFetcher(Fetcher):
             "ratelimit": YT_DLP_RATE_LIMIT,
             "continuedl": True,
         }
+        if format_selector:
+            options["format"] = format_selector
         with yt_dlp.YoutubeDL(options) as ydl:
             ydl.download([url])
         candidates = sorted([p for p in temp_dir.glob("*") if p.is_file()], key=lambda x: x.stat().st_mtime, reverse=True)
@@ -516,6 +524,7 @@ async def _handle_fetch(
     *,
     url: Optional[str] = None,
     preferred_name: Optional[str] = None,
+    format_id: Optional[str] = None,
 ) -> None:
     """Handle file fetching, uploading, and user feedback."""
     user_id = getattr(message.from_user, "id", None)
@@ -540,7 +549,9 @@ async def _handle_fetch(
     try:
         # 开始下载
         LOGGER.info("Starting fetch: user=%s, fetcher=%s", user_id, type(fetcher).__name__)
-        result = await fetcher.fetch(client, message, url=url, preferred_name=preferred_name)
+        result = await fetcher.fetch(
+            client, message, url=url, preferred_name=preferred_name, format_id=format_id
+        )
         LOGGER.info(
             "Fetch completed: user=%s, file=%s, size=%d bytes",
             user_id,
@@ -717,6 +728,101 @@ async def ytdl_handler(client, message):
         LOGGER.info("No URL provided, sending help message")
         await client.send_message(message.chat.id, Messages.PROVIDE_YTDL_LINK)
         return
-    LOGGER.info("Starting YtDlp fetch for URL: %s", url)
-    fetcher = YtDlpFetcher(DOWNLOAD_PATH, MAX_MIRROR_FILE_SIZE)
-    await _handle_fetch(client, message, fetcher, url=url)
+
+    # 【新增】显示准备中消息
+    preparing_msg = await client.send_message(
+        message.chat.id,
+        Messages.DOWNLOAD_PREPARING,
+        reply_to_message_id=message.id
+    )
+    
+    LOGGER.info("Starting YtDlp analysis for URL: %s", url)
+    
+    try:
+        # 【新增】获取视频信息（不直接下载）
+        loop = asyncio.get_running_loop()
+        fetcher = YtDlpFetcher(DOWNLOAD_PATH, MAX_MIRROR_FILE_SIZE)
+        
+        info = await loop.run_in_executor(
+            None,
+            lambda: fetcher._extract_info(url, DOWNLOAD_PATH)
+        )
+        
+        video_title = info.get('title', 'Unknown Video')
+        LOGGER.info("Video info extracted: title=%s", video_title)
+        
+        # 【新增】删除准备中的消息
+        try:
+            await client.delete_messages(message.chat.id, preparing_msg.id)
+        except Exception as e:
+            LOGGER.warning("Failed to delete preparing message: %s", e)
+        
+        # 【新增】缓存视频信息
+        video_cache.set(user_id, {
+            'url': url,
+            'info': info,
+            'title': video_title
+        })
+        LOGGER.info("Video info cached for user %s", user_id)
+        
+        # 【新增】显示清晰度选择界面
+        await YtDlpQualitySelector.show_quality_selector(
+            client, message, info, video_title
+        )
+        
+    except Exception as exc:
+        LOGGER.error("Error in ytdl analysis: %s", str(exc), exc_info=True)
+        try:
+            await client.delete_messages(message.chat.id, preparing_msg.id)
+        except Exception:
+            pass
+
+        error_code = get_error_code_by_exception(exc)
+        error_msg = get_error_message(error_code, str(exc))
+        await client.send_message(message.chat.id, error_msg)
+
+
+@Client.on_callback_query()
+async def handle_ytdl_quality_selection(client: Client, callback_query):
+    """处理 ytdl 清晰度选择"""
+    
+    if not callback_query.data.startswith("ytdl_select_"):
+        return
+    
+    await callback_query.answer("📥 开始下载...")
+    
+    user_id = callback_query.from_user.id
+    selected_format = callback_query.data.replace("ytdl_select_", "")
+    
+    LOGGER.info("User %s selected format: %s", user_id, selected_format)
+    
+    try:
+        # 获取缓存的视频信息
+        cached = video_cache.get(user_id)
+        if not cached:
+            await callback_query.answer(
+                "❌ 视频信息已过期，请重新发送链接",
+                show_alert=True
+            )
+            return
+        
+        url = cached['url']
+        
+        # 开始下载
+        LOGGER.info("Starting download with format %s for user %s", selected_format, user_id)
+        
+        fetcher = YtDlpFetcher(DOWNLOAD_PATH, MAX_MIRROR_FILE_SIZE)
+        message = callback_query.message
+        
+        # 调用标准下载流程
+        await _handle_fetch(client, message, fetcher, url=url, format_id=selected_format)
+        
+        # 清除缓存
+        video_cache.clear(user_id)
+        
+    except Exception as exc:
+        LOGGER.error("Error in quality selection: %s", str(exc), exc_info=True)
+        await callback_query.answer(
+            f"❌ 错误: {str(exc)[:100]}",
+            show_alert=True
+        )
