@@ -205,17 +205,20 @@ class YtDlpQualitySelector:
                             str(e)
                         )
                 
+                callback_data = f"ytdl_select_{quality.format_id}"
+
                 buttons[-1].append(
                     InlineKeyboardButton(
                         text=btn_text,
-                        callback_data=f"ytdl_select_{quality.format_id}"
+                        callback_data=callback_data
                     )
                 )
                 LOGGER.debug(
-                    "Added quality button: format_id=%s, text=%s, index=%d",
+                    "Added quality button: format_id=%s, text=%s, index=%d, callback=%s",
                     quality.format_id,
                     btn_text,
-                    i
+                    i,
+                    callback_data
                 )
             
             # 添加音频按钮
