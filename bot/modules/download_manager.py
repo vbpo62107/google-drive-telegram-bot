@@ -895,102 +895,24 @@ async def ytdl_handler(client, message):
 
 @Client.on_callback_query()
 async def handle_ytdl_quality_selection(client: Client, callback_query):
-    """处理 ytdl 清晰度选择"""
-    
+    """处理 ytdl 清晰度选择回调"""
+
     if not callback_query.data.startswith("ytdl_select_"):
         return
-    
-    LOGGER.debug("Quality selection callback triggered: data=%s", callback_query.data)
-    
-    await callback_query.answer("📋 开始下载...")
-    
+
     user_id = callback_query.from_user.id
     selected_format = callback_query.data.replace("ytdl_select_", "")
-    
+
     LOGGER.info(
-        "User selected quality format: user_id=%s, format=%s, callback_data=%s",
+        "handle_ytdl_quality_selection: Callback triggered, data=%s, user=%s, format=%s",
+        callback_query.data,
         user_id,
         selected_format,
-        callback_query.data
     )
-    
-    try:
-        # 获取缓存的视频信息
-        cached = video_cache.get(user_id)
-        if not cached:
-            LOGGER.warning(
-                "Video cache not found: user_id=%s, selected_format=%s",
-                user_id,
-                selected_format
-            )
-            await callback_query.answer(
-                "❌ 视频信息已过期，请重新发送链接",
-                show_alert=True
-            )
-            return
-        
-        url = cached['url']
-        title = cached.get('title', 'Unknown')
-        
-        # 开始下载
-        LOGGER.info(
-            "Starting download with selected quality: user_id=%s, title=%s, format=%s, url=%s",
-            user_id,
-            title,
-            selected_format,
-            url
-        )
-        
-        fetcher = YtDlpFetcher(DOWNLOAD_PATH, MAX_MIRROR_FILE_SIZE)
-        message = callback_query.message
-        
-        # 调用标准下载流程
-        await _handle_fetch(client, message, fetcher, url=url, format_id=selected_format)
-        
-        # 清除缓存
-        video_cache.clear(user_id)
-        LOGGER.info(
-            "Download and cache cleanup completed: user_id=%s, format=%s",
-            user_id,
-            selected_format
-        )
-        
-    except Exception as exc:
-        LOGGER.error(
-            "Error in quality selection handler: user_id=%s, format=%s, error=%s",
-            user_id,
-            selected_format,
-            str(exc),
-            exc_info=True
-        )
-        await callback_query.answer(
-            f"❌ 错误: {str(exc)[:100]}",
-            show_alert=True
-        )
 
-
-# 【新增】ytdl 清晰度选择回调处理器
-@Client.on_callback_query()
-async def handle_ytdl_quality_selection(client: Client, callback_query):
-    """处理 ytdl 清晰度选择回调"""
-    
-    # 检查是否是 ytdl 清晰度选择回调
-    if not callback_query.data.startswith("ytdl_select_"):
-        return
-    
-    LOGGER.info("handle_ytdl_quality_selection: Callback triggered, data=%s, user=%s", 
-                callback_query.data, callback_query.from_user.id)
-    
-    # 显示加载动画
-    await callback_query.answer("📥 开始下载...", show_alert=False)
-    
-    user_id = callback_query.from_user.id
-    selected_format = callback_query.data.replace("ytdl_select_", "")
-    
-    LOGGER.info("handle_ytdl_quality_selection: User %s selected format: %s", user_id, selected_format)
-    
     try:
-        # 获取缓存的视频信息
+        await callback_query.answer("📥 开始下载...", show_alert=False)
+
         cached = video_cache.get(user_id)
         if not cached:
             LOGGER.warning("handle_ytdl_quality_selection: Cache miss for user %s", user_id)
@@ -999,15 +921,16 @@ async def handle_ytdl_quality_selection(client: Client, callback_query):
                 show_alert=True
             )
             return
-        
+
         url = cached['url']
-        info = cached['info']
-        video_title = cached['title']
-        
-        LOGGER.info("handle_ytdl_quality_selection: Retrieved cached info for user %s, title=%s", 
-                    user_id, video_title)
-        
-        # 编辑消息为下载中状态
+        video_title = cached.get('title', 'Unknown')
+
+        LOGGER.info(
+            "handle_ytdl_quality_selection: Retrieved cached info for user %s, title=%s",
+            user_id,
+            video_title,
+        )
+
         message = callback_query.message
         status_text = (
             f"📥 **开始下载**\n"
@@ -1015,7 +938,7 @@ async def handle_ytdl_quality_selection(client: Client, callback_query):
             f"清晰度：{selected_format}\n\n"
             f"⏳ 正在下载..."
         )
-        
+
         try:
             await client.edit_message_text(
                 message.chat.id,
@@ -1025,23 +948,21 @@ async def handle_ytdl_quality_selection(client: Client, callback_query):
             LOGGER.info("handle_ytdl_quality_selection: Status message updated")
         except Exception as edit_exc:
             LOGGER.warning("handle_ytdl_quality_selection: Failed to edit message: %s", edit_exc)
-        
-        # 创建 fetcher 并下载
-        LOGGER.info("handle_ytdl_quality_selection: Creating YtDlpFetcher for format %s", selected_format)
-        
+
         fetcher = YtDlpFetcher(DOWNLOAD_PATH, MAX_MIRROR_FILE_SIZE)
-        
-        # 调用标准的下载和上传流程
-        LOGGER.info("handle_ytdl_quality_selection: Starting _handle_fetch for user %s", user_id)
-        await _handle_fetch(client, message, fetcher, url=url)
-        
-        # 清除缓存
+
+        LOGGER.info(
+            "handle_ytdl_quality_selection: Starting _handle_fetch for user %s with format %s",
+            user_id,
+            selected_format,
+        )
+        await _handle_fetch(client, message, fetcher, url=url, format_id=selected_format)
+
         video_cache.clear(user_id)
         LOGGER.info("handle_ytdl_quality_selection: Cache cleared for user %s", user_id)
-        
+
     except Exception as exc:
         LOGGER.error("handle_ytdl_quality_selection: Error occurred - %s", str(exc), exc_info=True)
-        
         error_msg = f"❌ **下载失败**\n\n错误: {str(exc)[:100]}"
         try:
             await callback_query.answer(error_msg, show_alert=True)
