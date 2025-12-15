@@ -637,9 +637,11 @@ async def _handle_fetch(
     url: Optional[str] = None,
     preferred_name: Optional[str] = None,
     format_id: Optional[str] = None,
+    user_id: Optional[int] = None,
 ) -> None:
     """Handle file fetching, uploading, and user feedback."""
-    user_id = getattr(message.from_user, "id", None)
+    if user_id is None:
+        user_id = getattr(message.from_user, "id", None)
 
     # 认证检查
     from bot.helpers.sql_helper.gDriveDB import is_authorized
@@ -959,7 +961,14 @@ async def handle_ytdl_quality_selection(
             user_id,
             selected_format,
         )
-        await _handle_fetch(client, message, fetcher, url=url, format_id=selected_format)
+        await _handle_fetch(
+            client,
+            message,
+            fetcher,
+            url=url,
+            format_id=selected_format,
+            user_id=user_id,
+        )
 
         video_cache.clear(user_id)
         LOGGER.info("handle_ytdl_quality_selection: Cache cleared for user %s", user_id)
