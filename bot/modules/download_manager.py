@@ -27,7 +27,10 @@ from pyrogram.file_id import FileId
 from bot import DOWNLOAD_DIRECTORY, MAX_MIRROR_FILE_SIZE, SUDO_USERS, LOGGER
 from bot.config import BotCommands, Messages
 from bot.utils.cache import video_cache
-from bot.modules.ytdl_quality_selector import YtDlpQualitySelector
+from bot.modules.ytdl_quality_selector import (
+    YtDlpQualitySelector,
+    YTDL_CALLBACK_PREFIX,
+)
 from bot.utils.messages_utils import render_permission_error, MessageTemplate
 from bot.utils.error_codes import get_error_message, get_error_code_by_exception
 from bot.helpers.utils import humanbytes, get_floodwait_seconds
@@ -894,14 +897,14 @@ async def ytdl_handler(client, message):
         await client.send_message(message.chat.id, error_msg)
 
 
-@Client.on_callback_query(filters=filters.regex(r"^ytdl_select_"))
+@Client.on_callback_query(filters=filters.regex(rf"^{YTDL_CALLBACK_PREFIX}"))
 async def handle_ytdl_quality_selection(
     client: Client, callback_query: CallbackQuery
 ) -> None:
     """处理 ytdl 清晰度选择回调"""
 
     user_id = callback_query.from_user.id
-    selected_format = callback_query.data.replace("ytdl_select_", "")
+    selected_format = callback_query.data.replace(YTDL_CALLBACK_PREFIX, "")
 
     LOGGER.info(
         "handle_ytdl_quality_selection: Callback triggered, data=%s, user=%s, format=%s",

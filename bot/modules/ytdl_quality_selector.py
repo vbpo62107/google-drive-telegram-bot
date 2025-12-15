@@ -4,6 +4,8 @@ from typing import Optional, List
 from pyrogram import Client
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
+YTDL_CALLBACK_PREFIX = "ytdl_select_"
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -205,7 +207,7 @@ class YtDlpQualitySelector:
                             str(e)
                         )
                 
-                callback_data = f"ytdl_select_{quality.format_id}"
+                callback_data = f"{YTDL_CALLBACK_PREFIX}{quality.format_id}"
 
                 buttons[-1].append(
                     InlineKeyboardButton(
@@ -225,7 +227,7 @@ class YtDlpQualitySelector:
             buttons.append([
                 InlineKeyboardButton(
                     text="🎵 最佳音质（仅音频）",
-                    callback_data="ytdl_select_audio"
+                    callback_data=f"{YTDL_CALLBACK_PREFIX}audio"
                 )
             ])
             LOGGER.debug("Added audio-only button")
