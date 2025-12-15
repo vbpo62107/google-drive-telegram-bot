@@ -273,6 +273,17 @@ if __name__ == "__main__":
 
     LOGGER.info("Debug catch-all handler registered")
 
+    # 临时调试回调
+    @app.on_callback_query(group=-999)
+    async def debug_callback_catch_all(client, callback_query):
+        import logging
+
+        logging.warning(
+            "🔥🔥🔥 CALLBACK_CATCH_ALL: Received callback_data=%s from user=%s",
+            callback_query.data,
+            callback_query.from_user.id,
+        )
+
     LOGGER.info("Starting bot...")
     app.run()
     LOGGER.info("Bot stopped.")
