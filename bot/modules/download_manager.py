@@ -897,7 +897,7 @@ async def ytdl_handler(client, message):
         await client.send_message(message.chat.id, error_msg)
 
 
-@Client.on_callback_query(filters=filters.regex(rf"^{YTDL_CALLBACK_PREFIX}"))
+@Client.on_callback_query(filters=filters.regex(r"^ytdl_select_"))
 async def handle_ytdl_quality_selection(
     client: Client, callback_query: CallbackQuery
 ) -> None:
