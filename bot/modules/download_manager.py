@@ -20,6 +20,7 @@ import aiofiles
 import httpx
 import yt_dlp
 from pyrogram import Client, filters
+from pyrogram.types import CallbackQuery
 from pyrogram.errors import AuthBytesInvalid, FloodWait, RPCError
 from pyrogram.file_id import FileId
 
@@ -894,7 +895,9 @@ async def ytdl_handler(client, message):
 
 
 @Client.on_callback_query(filters=filters.regex(r"^ytdl_select_"))
-async def handle_ytdl_quality_selection(client: Client, callback_query):
+async def handle_ytdl_quality_selection(
+    client: Client, callback_query: CallbackQuery
+) -> None:
     """处理 ytdl 清晰度选择回调"""
 
     user_id = callback_query.from_user.id
