@@ -5,8 +5,9 @@ from importlib import import_module
 from pathlib import Path
 from typing import List
 
-from pyrogram import Client
+from pyrogram import Client, filters
 from pyrogram.enums import ParseMode
+from pyrogram.handlers import CallbackQueryHandler
 
 from bot import APP_ID, API_HASH, BOT_TOKEN, DOWNLOAD_DIRECTORY
 from bot.modules.drive_helper import cleanup_drive_instances
@@ -101,7 +102,6 @@ if __name__ == "__main__":
         parse_mode=ParseMode.MARKDOWN,
     )
     # 手动注册所有命令处理器（确保可靠性）
-    from pyrogram import filters
     from pyrogram.handlers import MessageHandler
     from bot.modules.download_manager import ytdl_handler, download_handler
     from bot.modules.mirror import mirror_handler
@@ -272,6 +272,18 @@ if __name__ == "__main__":
         )
 
     LOGGER.info("Debug catch-all handler registered")
+
+    # 手动注册 ytdl 回调处理器
+    from bot.modules.download_manager import handle_ytdl_quality_selection
+
+    app.add_handler(
+        CallbackQueryHandler(
+            handle_ytdl_quality_selection,
+            filters.regex(r"^ytdl_select_")
+        ),
+        group=0
+    )
+    LOGGER.info("✅ ytdl_quality_selection handler manually registered via add_handler")
 
     # 临时调试回调
     @app.on_callback_query(group=-999)
