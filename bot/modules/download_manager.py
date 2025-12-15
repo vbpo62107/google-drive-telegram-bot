@@ -893,12 +893,9 @@ async def ytdl_handler(client, message):
         await client.send_message(message.chat.id, error_msg)
 
 
-@Client.on_callback_query()
+@Client.on_callback_query(filters=filters.regex(r"^ytdl_select_"))
 async def handle_ytdl_quality_selection(client: Client, callback_query):
     """处理 ytdl 清晰度选择回调"""
-
-    if not callback_query.data.startswith("ytdl_select_"):
-        return
 
     user_id = callback_query.from_user.id
     selected_format = callback_query.data.replace("ytdl_select_", "")
