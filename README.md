@@ -35,6 +35,7 @@ cd google-drive-telegram-bot
 ```sh 
 pip3 install -r requirements.txt
 ```
+- When redeploying or updating the bot, rerun the requirements installation to pull newly added dependencies (e.g., `py115`, `requests`).
 
 ### Configuration
 The bot now relies exclusively on environment variables. You can either export them in your shell or create a `.env` file next to `README.md`.
