@@ -34,8 +34,8 @@ MODULE_NAMES: List[str] = [
     "download_manager",
     "list_drive",
     "mirror",
-    "oneonefive_manager",
     "search_drive",
+    "oneonefive_manager",  # 🆕 添加这一行
 ]
 
 
