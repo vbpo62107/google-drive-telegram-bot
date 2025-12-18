@@ -68,4 +68,4 @@ def get_session():
 
 # Import models so metadata is populated before create_all runs.
 # These imports are intentionally placed at the end to avoid circular dependencies.
-from bot.helpers.sql_helper import gDriveDB, idsDB, keyword_monitors, mirror_tasks, oneonefive_db  # noqa: E402,F401
+from bot.helpers.sql_helper import gDriveDB, idsDB, keyword_monitors, mirror_tasks, oneonefive_db, recent_task_files  # noqa: E402,F401

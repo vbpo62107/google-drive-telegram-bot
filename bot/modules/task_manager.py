@@ -10,8 +10,10 @@ import aiohttp
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot import DOWNLOAD_DIRECTORY, LOGGER, MAX_CONCURRENT_MIRRORS, MAX_MIRROR_FILE_SIZE
+from bot.config import Messages
 from bot.helpers.sql_helper import get_session
 from bot.helpers.sql_helper.mirror_tasks import MirrorTask, MirrorTaskStatus
+from bot.helpers.recent_task_files import record_recent_task_file
 from bot.helpers.utils import (
     format_bytes,
     format_elapsed_eta,
@@ -59,6 +61,7 @@ class MirrorTaskRunner:
         self._lock = asyncio.Lock()
         self._upload_pause_event = threading.Event()
         self._upload_pause_event.set()
+        self._preserve_file = False
 
     async def refresh(self) -> MirrorTask:
         def op():
@@ -211,6 +214,7 @@ class MirrorTaskRunner:
                 if self._downloaded:
                     await self._handle_progress("下载中", self._downloaded, self._total, force=True)
         await asyncio.to_thread(shutil.move, self._temp_path, self._destination)
+        await self._register_local_file()
 
     async def _download_from_telegram(self) -> None:
         LOGGER.info("📥 Task %s starting Telegram download: %s", self.id, self.url)
@@ -367,6 +371,7 @@ class MirrorTaskRunner:
                 await asyncio.to_thread(os.remove, actual_path)
 
         await asyncio.to_thread(shutil.move, self._temp_path, self._destination)
+        await self._register_local_file()
 
     async def _upload(self) -> None:
         try:
@@ -531,7 +536,10 @@ class MirrorTaskRunner:
         status = record.status
         if status == MirrorTaskStatus.COMPLETED.value and self._drive_link:
             text = self._drive_link
-            markup = None
+            markup = self._build_completed_keyboard()
+        elif status == MirrorTaskStatus.COMPLETED.value:
+            text = Messages.MIRROR_TASK_COMPLETED.format(task_id=self.id)
+            markup = self._build_completed_keyboard()
         elif status == MirrorTaskStatus.PAUSED.value:
             return
         elif status == MirrorTaskStatus.CANCELLED.value:
@@ -584,7 +592,15 @@ class MirrorTaskRunner:
         return record
 
     async def _cleanup(self) -> None:
-        for path in (self._temp_path, self._destination):
+        for path in (self._temp_path,):
+            if os.path.exists(path):
+                try:
+                    await asyncio.to_thread(os.remove, path)
+                except FileNotFoundError:
+                    pass
+        if self._preserve_file:
+            return
+        for path in (self._destination,):
             if os.path.exists(path):
                 try:
                     await asyncio.to_thread(os.remove, path)
@@ -604,6 +620,22 @@ class MirrorTaskRunner:
 
     def _determine_upload_size(self) -> int:
         return os.path.getsize(self._destination)
+
+    async def _register_local_file(self) -> None:
+        if not os.path.isfile(self._destination):
+            return
+        self._preserve_file = True
+        try:
+            await asyncio.to_thread(record_recent_task_file, self.id, self.user_id, self.file_name, self._destination)
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.warning("Failed to record recent task file for %s: %s", self.id, exc)
+
+    def _build_completed_keyboard(self) -> Optional[InlineKeyboardMarkup]:
+        if not self._preserve_file or not os.path.isfile(self._destination):
+            return None
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(Messages.ONEONEFIVE_UPLOAD_BUTTON, callback_data=f"115upload:{self.id}")]
+        ])
 
 
 class TaskManager:
