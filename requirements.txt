@@ -1,5 +1,6 @@
 pyrogram
-py115
+p115client
+aiofiles
 TgCrypto
 google-api-python-client>=2.187.0
 google-auth-httplib2
@@ -12,6 +13,5 @@ cachetools
 aiofiles
 cryptography
 httpx
-requests
 yt-dlp
 SQLAlchemy
