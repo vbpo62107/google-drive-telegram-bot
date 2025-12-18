@@ -24,6 +24,8 @@ class BotCommands:
     YtDl = ['ytdl']
     ListDrive = ['listdrive', 'lsdrive', 'listdriv']
     SearchDrive = ['searchdrive', 'sdrive']
+    OneOneFiveAuth = ['115auth', '115login']
+    OneOneFiveUpload = ['115upload']
 
 
 class Messages:
@@ -357,6 +359,45 @@ class Messages:
     DOWNLOAD_TOO_MANY_REQUESTS = "❗ **请求过快**\n请 {} 秒后重试"
     DOWNLOAD_INTERNAL_ERROR = "❗ **内部错误**"
     DOWNLOAD_GENERIC_ERROR = "❗ **下载失败**"
+
+    # ━━━━━━━━━━━━━━━━━━━ 115 云盘相关 ━━━━━━━━━━━━━━━━━━━
+    ONEONEFIVE_AUTH_USAGE = (
+        "❗ **115 授权参数错误**\n\n"
+        "请按以下格式发送：\n"
+        "• `/115auth cookies <Cookies字符串>` - 使用 Cookies 授权\n"
+        "• `/115auth token <token> [app_id]` - 使用 token 授权，可选 app_id\n"
+        "• `/115auth info` - 查看当前授权状态"
+    )
+    ONEONEFIVE_AUTH_SAVED = "✅ **115 授权已保存**\n方式：{method}\n时间：{updated_at}"
+    ONEONEFIVE_AUTH_FAILED = "❌ **115 授权保存失败**\n原因：{reason}"
+    ONEONEFIVE_AUTH_REQUIRED = (
+        "🔑 **未找到 115 授权**\n\n"
+        "请先使用 `/115auth cookies <Cookies>` 或 `/115auth token <token> [app_id]` 完成授权。"
+    )
+    ONEONEFIVE_AUTH_INFO = (
+        "🔐 **115 授权状态**\n方式：{method}\n更新时间：{updated_at}\n\n"
+        "如需更新，重新发送 /115auth。"
+    )
+    ONEONEFIVE_UPLOAD_PREPARING = (
+        "📤 **准备上传到 115...**\n"
+        "文件：{filename}\n"
+        "目标目录：{pid}"
+    )
+    ONEONEFIVE_UPLOAD_SUCCESS = (
+        "✅ **115 上传成功**\n"
+        "文件：`{filename}`\n"
+        "分享链接：{share_url}\n"
+        "{extra_lines}"
+    )
+    ONEONEFIVE_UPLOAD_FAILED = (
+        "❌ **115 上传失败**\n"
+        "原因：{reason}"
+    )
+    ONEONEFIVE_RECENT_FILE_MISSING = (
+        "❗ **未找到可用的本地文件**\n"
+        "请先完成一次下载或镜像任务，或在命令中提供文件路径。\n\n"
+        "用法：`/115upload [本地文件路径或名称] | [115 目录ID]`"
+    )
 
     # ━━━━━━━━━━━━━━━━━━━ 其他兼容性字段 ━━━━━━━━━━━━━━━━━━━
     INVALID_FILENAME = "❗ **文件名无效**"

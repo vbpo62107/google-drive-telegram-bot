@@ -10,6 +10,7 @@ from pyrogram.enums import ParseMode
 from pyrogram.handlers import CallbackQueryHandler
 
 from bot import APP_ID, API_HASH, BOT_TOKEN, DOWNLOAD_DIRECTORY
+from bot.helpers.utils import CustomFilters
 from bot.modules.drive_helper import cleanup_drive_instances
 
 logging.basicConfig(
@@ -33,6 +34,7 @@ MODULE_NAMES: List[str] = [
     "download_manager",
     "list_drive",
     "mirror",
+    "oneonefive_manager",
     "search_drive",
 ]
 
@@ -114,6 +116,7 @@ if __name__ == "__main__":
     from bot.modules.auth_mode import auth_mode_handler
     from bot.modules.search_drive import search_drive_handler
     from bot.modules.list_drive import list_drive_handler
+    from bot.modules.oneonefive_manager import oneonefive_auth_handler, oneonefive_upload_handler
     # 添加 plugins 中的处理器
     from bot.plugins.clone import clone_handler
     from bot.plugins.delete import delete_handler, emptytrash_handler
@@ -163,6 +166,25 @@ if __name__ == "__main__":
         group=-1
     )
     LOGGER.info("✅ list_drive_handler registered")
+
+    # 115 授权与上传
+    app.add_handler(
+        MessageHandler(
+            oneonefive_auth_handler,
+            filters.private & filters.incoming & filters.command(["115auth", "115login"]) & CustomFilters.auth_users,
+        ),
+        group=-1,
+    )
+    LOGGER.info("✅ oneonefive_auth_handler registered")
+
+    app.add_handler(
+        MessageHandler(
+            oneonefive_upload_handler,
+            filters.private & filters.incoming & filters.command(["115upload"]) & CustomFilters.auth_users,
+        ),
+        group=-1,
+    )
+    LOGGER.info("✅ oneonefive_upload_handler registered")
 
     # Auto Capture Monitors
     app.add_handler(
