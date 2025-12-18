@@ -360,6 +360,8 @@ class Messages:
     DOWNLOAD_INTERNAL_ERROR = "❗ **内部错误**"
     DOWNLOAD_GENERIC_ERROR = "❗ **下载失败**"
 
+    MIRROR_TASK_COMPLETED = "✅ 任务已完成\nID: {task_id}"
+
     # ━━━━━━━━━━━━━━━━━━━ 115 云盘相关 ━━━━━━━━━━━━━━━━━━━
     ONEONEFIVE_AUTH_USAGE = (
         "❗ **115 授权参数错误**\n\n"
@@ -398,6 +400,9 @@ class Messages:
         "请先完成一次下载或镜像任务，或在命令中提供文件路径。\n\n"
         "用法：`/115upload [本地文件路径或名称] | [115 目录ID]`"
     )
+    ONEONEFIVE_UPLOAD_BUTTON = "📤 上传到 115"
+    ONEONEFIVE_INLINE_PREPARING = "⏳ 正在准备上传"
+    ONEONEFIVE_INLINE_FILE_MISSING = "⚠️ 未找到可用文件"
 
     # ━━━━━━━━━━━━━━━━━━━ 其他兼容性字段 ━━━━━━━━━━━━━━━━━━━
     INVALID_FILENAME = "❗ **文件名无效**"
