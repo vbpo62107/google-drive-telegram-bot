@@ -1,5 +1,5 @@
 pyrogram
-p115client
+git+https://github.com/ChenyangGao/p115client@main
 sqlitetools
 aiofiles
 TgCrypto
