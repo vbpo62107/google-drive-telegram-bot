@@ -1,0 +1,117 @@
+name: Revert to 34908d96
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-revert:
+    name: Create revert branch and revert commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch all refs
+        run: |
+          git fetch origin
+
+      - name: Create branch from origin/main
+        run: |
+          BRANCH_NAME="revert-to-34908d96"
+          git switch -c "$BRANCH_NAME" origin/main
+          echo "Created branch $BRANCH_NAME"
+
+      - name: Run revert sequence
+        env:
+          BASE_COMMIT: 34908d96d28c36029a1b6d77cd2bbe66e698e7f3
+          NEW_BRANCH: revert-to-34908d96
+          REMOTE: origin
+          REPO_OWNER: vbpo62107
+          REPO_NAME: google-drive-telegram-bot
+        run: |
+          set -euo pipefail
+
+          # Ensure working tree is clean
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "Working tree is not clean. Please ensure a fresh checkout."
+            git status --short
+            exit 1
+          fi
+
+          # Collect commits to revert (newest -> oldest)
+          mapfile -t commits < <(git rev-list "${BASE_COMMIT}..HEAD")
+
+          if [ ${#commits[@]} -eq 0 ]; then
+            echo "No commits found in range ${BASE_COMMIT}..HEAD. Nothing to revert."
+            exit 0
+          fi
+
+          echo "Will attempt to revert ${#commits[@]} commits (newest -> oldest)."
+
+          new_revert_shas=()
+
+          for sha in "${commits[@]}"; do
+            echo
+            echo "Processing commit $sha ..."
+
+            parent_count=$(git cat-file -p "$sha" | grep ^parent | wc -l)
+            if [ "$parent_count" -gt 1 ]; then
+              echo "Commit $sha is a merge commit (parents: $parent_count)."
+              echo "Reverting merge commits requires choosing a parent (-m). Aborting to avoid an incorrect revert."
+              git --no-pager show --stat --pretty=fuller "$sha"
+              exit 2
+            fi
+
+            orig_subject=$(git log --format=%s -n 1 "$sha")
+            orig_author_name=$(git log --format=%an -n 1 "$sha")
+            orig_author_email=$(git log --format=%ae -n 1 "$sha")
+            orig_body=$(git log --format=%B -n 1 "$sha")
+
+            revert_message="Revert \"$orig_subject\"\n\nThis reverts commit $sha\nAuthor: $orig_author_name <$orig_author_email>\n\nOriginal commit message:\n$orig_body\n"
+
+            if ! git revert --no-commit "$sha"; then
+              echo
+              echo "Conflict while reverting commit $sha."
+              echo "Files in conflict:" 
+              git diff --name-only --diff-filter=U || true
+              echo
+              echo "Git status:"
+              git status --porcelain --untracked-files=no
+              echo
+              echo "Leaving repository in conflict state. Resolve conflicts manually, then finish the revert by committing, or run 'git revert --abort' to cancel."
+              exit 3
+            fi
+
+            git commit -m "$revert_message"
+
+            new_sha=$(git rev-parse HEAD)
+            new_revert_shas+=("$new_sha")
+            echo "Created revert commit $new_sha for original $sha"
+          done
+
+          echo
+          echo "Pushing branch ${NEW_BRANCH} to ${REMOTE}..."
+          git push "${REMOTE}" "${NEW_BRANCH}"
+
+          echo
+          echo "Created ${#new_revert_shas[@]} revert commits on branch ${NEW_BRANCH}:"
+          for s in "${new_revert_shas[@]}"; do
+            echo "$s -> https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${s}"
+          done
+
+      - name: Output branch and status
+        run: |
+          echo "Revert branch created: https://github.com/${{ github.repository }}/tree/revert-to-34908d96"
+          echo "If the job exited with errors, inspect the logs to see conflict or merge-commit details."
