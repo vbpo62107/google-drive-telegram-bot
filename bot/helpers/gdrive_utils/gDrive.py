@@ -22,7 +22,6 @@ from tenacity.wait import wait_random_exponential
 from bot import LOGGER, SERVICE_ACCOUNT_GRANT_ACCESS
 from bot.config import Messages
 from bot.helpers.sql_helper import gDriveDB
-from bot.helpers.utils import format_bytes, humanbytes
 
 
 class AdaptiveChunkController:
@@ -607,6 +606,7 @@ class GoogleDrive:
             return result
 
         async def run_upload():
+                    from bot.helpers.utils import format_bytes, humanbytes
             try:
                 return await loop.run_in_executor(None, wrapped_call)
             except Exception as exc:
