@@ -1,6 +1,6 @@
 pyrogram
 git+https://github.com/ChenyangGao/p115client@main
-sqlitetools
+
 aiofiles
 TgCrypto
 google-api-python-client>=2.187.0
