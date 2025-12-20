@@ -222,12 +222,12 @@ async def _start_oneonefive_upload(
     )
 
 
-@Client.on_message(
-    filters.private
-    & filters.incoming
-    & filters.command(BotCommands.OneOneFiveAuth)
-    & CustomFilters.auth_users,
-)
+# @Client.on_message(
+    #     filters.private
+    #     & filters.incoming
+    #     & filters.command(BotCommands.OneOneFiveAuth)
+    #     & CustomFilters.auth_users,
+# )
 async def oneonefive_auth_handler(client: Client, message) -> None:
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, render_permission_error("115 授权", "使用"), quote=True)
@@ -305,12 +305,12 @@ async def oneonefive_auth_handler(client: Client, message) -> None:
     await client.send_message(message.chat.id, Messages.ONEONEFIVE_AUTH_USAGE, quote=True)
 
 
-@Client.on_message(
-    filters.private
-    & filters.incoming
-    & filters.command(BotCommands.OneOneFiveUpload)
-    & CustomFilters.auth_users,
-)
+# @Client.on_message(
+#         filters.private
+    #     & filters.incoming
+    #     & filters.command(BotCommands.OneOneFiveUpload)
+    #     & CustomFilters.auth_users,
+# )
 async def oneonefive_upload_handler(client: Client, message) -> None:
     if message.from_user is None or message.from_user.id not in SUDO_USERS:
         await client.send_message(message.chat.id, render_permission_error("115 上传", "使用"), quote=True)
@@ -335,7 +335,7 @@ async def oneonefive_upload_handler(client: Client, message) -> None:
     )
 
 
-@Client.on_callback_query(filters.regex(r"^115upload:(\d+)$"))
+# @Client.on_callback_query(filters.regex(r"^115upload:(\d+)$"))
 async def oneonefive_upload_callback(client: Client, query) -> None:
     if query.from_user is None or query.from_user.id not in SUDO_USERS:
         await query.answer("⚠️ 无权操作", show_alert=True)
