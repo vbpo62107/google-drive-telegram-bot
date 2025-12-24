@@ -1,392 +1,469 @@
 """
-Apple 风格的设置面板
-提供集中化的设置管理界面
+Apple 风格的设置界面
+提供用户个性化设置和偏好管理
 """
 
 from pyrogram import Client, filters
 from pyrogram.types import CallbackQuery
-
-from bot import SUDO_USERS
+from bot import LOGGER, SUDO_USERS, DOWNLOAD_DIRECTORY
 from bot.ui_apple_style import AppleUI
-from bot.helpers.sql_helper.gDriveDB import is_authorized
+from bot.helpers.sql_helper import gDriveDB
+import os
+
+
+# 用户设置缓存（实际应用中应使用数据库）
+user_settings = {}
+
+
+def get_user_settings(user_id: int) -> dict:
+    """
+    获取用户设置
+    """
+    if user_id not in user_settings:
+        user_settings[user_id] = {
+            'theme': 'auto',  # auto, light, dark
+            'language': 'zh-CN',  # zh-CN, en-US
+            'notifications': True,
+            'auto_delete': False,
+            'upload_folder': 'root',
+            'max_file_size': 10 * 1024 * 1024 * 1024,  # 10 GB
+        }
+    return user_settings[user_id]
+
+
+def set_user_setting(user_id: int, key: str, value) -> None:
+    """
+    设置用户偏好
+    """
+    settings = get_user_settings(user_id)
+    settings[key] = value
+    user_settings[user_id] = settings
+    LOGGER.info(f"User {user_id} updated setting {key} = {value}")
 
 
 @Client.on_message(filters.command(["settings_apple", "sa"]) & filters.private, group=0)
 async def settings_apple_handler(client: Client, message):
     """
-    Apple 风格的设置面板
+    Apple 风格的设置主界面
     """
+    user_id = message.from_user.id
+    settings = get_user_settings(user_id)
+    
+    # 检查授权状态
+    is_authorized = gDriveDB.is_authorized(user_id)
+    auth_status = "✅ 已连接" if is_authorized else "⚠️ 未连接"
+    
     text = AppleUI.format_message(
         title="设置",
         icon=AppleUI.ICONS["settings"],
-        subtitle="自定义您的体验",
+        subtitle="自定义您的上传体验",
         content=(
-            "选择下方选项进行配置"
+            f"**Google Drive 状态**\n"
+            f"{auth_status}\n\n"
+            f"**当前设置**\n"
+            f"🌓 主题: {settings['theme']}\n"
+            f"🌍 语言: {settings['language']}\n"
+            f"🔔 通知: {'开启' if settings['notifications'] else '关闭'}\n"
+            f"🗑 自动删除: {'开启' if settings['auto_delete'] else '关闭'}\n\n"
+            f"点击下方选项进行配置"
         )
     )
     
-    # 检查授权状态
-    is_auth = is_authorized(str(message.from_user.id)) if message.from_user else False
-    auth_status = "✅ 已授权" if is_auth else "❌ 未授权"
-    
     keyboard = AppleUI.create_keyboard([
         [
-            AppleUI.create_button(
-                f"Google Drive {auth_status}",
-                callback_data="settings_auth",
-                icon=AppleUI.ICONS["gdrive"]
-            )
+            AppleUI.create_button("Google Drive", callback_data="settings_gdrive", icon=AppleUI.ICONS["gdrive"]),
+            AppleUI.create_button("外观", callback_data="settings_appearance", icon="🌓")
         ],
         [
-            AppleUI.create_button(
-                "上传设置",
-                callback_data="settings_upload",
-                icon=AppleUI.ICONS["upload"]
-            ),
-            AppleUI.create_button(
-                "文件管理",
-                callback_data="settings_files",
-                icon=AppleUI.ICONS["folder"]
-            )
+            AppleUI.create_button("通知", callback_data="settings_notifications", icon="🔔"),
+            AppleUI.create_button("高级", callback_data="settings_advanced", icon="⚙️")
         ],
         [
-            AppleUI.create_button(
-                "快捷命令",
-                callback_data="settings_commands",
-                icon=AppleUI.ICONS["menu"]
-            ),
-            AppleUI.create_button(
-                "关于",
-                callback_data="show_about",
-                icon=AppleUI.ICONS["info"]
-            )
-        ],
-        [AppleUI.create_button("返回主页", callback_data="back_home", icon=AppleUI.ICONS["home"])]
+            AppleUI.create_button("关于", callback_data="show_about", icon=AppleUI.ICONS["info"]),
+            AppleUI.create_button("返回", callback_data="back_home", icon=AppleUI.ICONS["home"])
+        ]
     ])
     
     await message.reply_text(text, reply_markup=keyboard)
 
 
-@Client.on_callback_query(filters.regex(r"^settings_auth$"))
-async def settings_auth_callback(client: Client, callback_query: CallbackQuery):
-    """授权设置"""
-    is_auth = is_authorized(str(callback_query.from_user.id))
+@Client.on_callback_query(filters.regex(r"^settings_gdrive$"))
+async def settings_gdrive_callback(client: Client, callback_query: CallbackQuery):
+    """
+    Google Drive 设置
+    """
+    user_id = callback_query.from_user.id
+    settings = get_user_settings(user_id)
+    is_authorized = gDriveDB.is_authorized(user_id)
     
-    if is_auth:
+    if is_authorized:
+        # 已授权，显示详细信息
+        record = gDriveDB.search(user_id)
+        device = record.device if record else "未知设备"
+        
         text = AppleUI.format_message(
-            title="Google Drive 授权",
-            icon=AppleUI.ICONS["success"],
+            title="Google Drive",
+            icon=AppleUI.ICONS["gdrive"],
             content=(
-                "**当前状态**: ✅ 已授权\n\n"
-                "您的 Google Drive 已成功连接\n\n"
-                "可以使用以下功能：\n"
-                "• 上传文件到 Drive\n"
-                "• 搜索和管理文件\n"
-                "• 克隆和删除文件"
+                f"**连接状态**\n"
+                f"✅ 已连接\n\n"
+                f"**设备信息**\n"
+                f"`{device}`\n\n"
+                f"**上传文件夹**\n"
+                f"{settings['upload_folder']}\n\n"
+                f"**文件大小限制**\n"
+                f"{settings['max_file_size'] // (1024**3)} GB"
             )
         )
         
         keyboard = AppleUI.create_keyboard([
+            [AppleUI.create_button("更改文件夹", callback_data="change_upload_folder", icon=AppleUI.ICONS["folder"])],
             [AppleUI.create_button("撤销授权", callback_data="revoke_auth", icon=AppleUI.ICONS["delete"])],
-            [AppleUI.create_button("返回设置", callback_data="back_settings", icon=AppleUI.ICONS["back"])]
+            [AppleUI.create_button("返回设置", callback_data="back_to_settings", icon=AppleUI.ICONS["back"])]
         ])
     else:
+        # 未授权，提示授权
         text = AppleUI.format_message(
-            title="Google Drive 授权",
-            icon=AppleUI.ICONS["warning"],
+            title="Google Drive",
+            icon=AppleUI.ICONS["gdrive"],
             content=(
-                "**当前状态**: ❌ 未授权\n\n"
-                "您尚未连接 Google Drive\n\n"
-                "授权后可以使用：\n"
+                "**连接状态**\n"
+                "⚠️ 未连接\n\n"
+                "连接 Google Drive 以使用上传功能\n\n"
+                "授权后您可以：\n"
                 "• 上传文件到 Drive\n"
                 "• 搜索和管理文件\n"
-                "• 克隆和删除文件"
-            )
+                "• 克隆和分享文件"
+            ),
+            footer="🔒 您的数据安全受到保护"
         )
         
         keyboard = AppleUI.create_keyboard([
             [AppleUI.create_button("立即授权", callback_data="auth_now", icon=AppleUI.ICONS["auth"])],
-            [AppleUI.create_button("返回设置", callback_data="back_settings", icon=AppleUI.ICONS["back"])]
+            [AppleUI.create_button("返回设置", callback_data="back_to_settings", icon=AppleUI.ICONS["back"])]
         ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard)
     await callback_query.answer()
 
 
-@Client.on_callback_query(filters.regex(r"^settings_upload$"))
-async def settings_upload_callback(client: Client, callback_query: CallbackQuery):
-    """上传设置"""
+@Client.on_callback_query(filters.regex(r"^settings_appearance$"))
+async def settings_appearance_callback(client: Client, callback_query: CallbackQuery):
+    """
+    外观设置
+    """
+    user_id = callback_query.from_user.id
+    settings = get_user_settings(user_id)
+    
+    current_theme = settings['theme']
+    theme_emoji = {
+        'auto': '🌓',
+        'light': '☀️',
+        'dark': '🌙'
+    }
+    
     text = AppleUI.format_message(
-        title="上传设置",
-        icon=AppleUI.ICONS["upload"],
+        title="外观设置",
+        icon="🌓",
         content=(
-            "**可用功能**\n\n"
-            "1. **镜像任务**\n"
-            "   `/mirror_apple <URL>` - 下载并上传到 Drive\n\n"
-            "2. **直接上传**\n"
-            "   直接发送文件给 bot\n\n"
-            "3. **设置默认文件夹**\n"
-            "   `/setfolder` - 选择上传目标位置\n\n"
-            "💡 提示：使用 `/ma` 作为 mirror_apple 的简写"
+            f"**当前主题**\n"
+            f"{theme_emoji[current_theme]} {current_theme.title()}\n\n"
+            f"**语言**\n"
+            f"🌍 {settings['language']}\n\n"
+            "选择您喜欢的外观主题"
         )
     )
     
     keyboard = AppleUI.create_keyboard([
         [
-            AppleUI.create_button("创建任务", callback_data="create_mirror", icon=AppleUI.ICONS["mirroring"]),
-            AppleUI.create_button("设置文件夹", callback_data="set_folder", icon=AppleUI.ICONS["folder"])
+            AppleUI.create_button(
+                "自动" + (" ✓" if current_theme == 'auto' else ""),
+                callback_data="theme_auto",
+                icon="🌓"
+            ),
+            AppleUI.create_button(
+                "浅色" + (" ✓" if current_theme == 'light' else ""),
+                callback_data="theme_light",
+                icon="☀️"
+            )
         ],
-        [AppleUI.create_button("返回设置", callback_data="back_settings", icon=AppleUI.ICONS["back"])]
+        [
+            AppleUI.create_button(
+                "深色" + (" ✓" if current_theme == 'dark' else ""),
+                callback_data="theme_dark",
+                icon="🌙"
+            )
+        ],
+        [AppleUI.create_button("语言设置", callback_data="settings_language", icon="🌍")],
+        [AppleUI.create_button("返回设置", callback_data="back_to_settings", icon=AppleUI.ICONS["back"])]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard)
     await callback_query.answer()
 
 
-@Client.on_callback_query(filters.regex(r"^settings_files$"))
-async def settings_files_callback(client: Client, callback_query: CallbackQuery):
-    """文件管理设置"""
+@Client.on_callback_query(filters.regex(r"^theme_(auto|light|dark)$"))
+async def theme_change_callback(client: Client, callback_query: CallbackQuery):
+    """
+    更改主题
+    """
+    user_id = callback_query.from_user.id
+    theme = callback_query.data.split("_")[1]
+    
+    set_user_setting(user_id, 'theme', theme)
+    
+    await callback_query.answer(f"✅ 主题已切换到 {theme.title()}")
+    
+    # 刷新外观设置页面
+    await settings_appearance_callback(client, callback_query)
+
+
+@Client.on_callback_query(filters.regex(r"^settings_notifications$"))
+async def settings_notifications_callback(client: Client, callback_query: CallbackQuery):
+    """
+    通知设置
+    """
+    user_id = callback_query.from_user.id
+    settings = get_user_settings(user_id)
+    
     text = AppleUI.format_message(
-        title="文件管理",
-        icon=AppleUI.ICONS["folder"],
+        title="通知设置",
+        icon="🔔",
         content=(
-            "**可用功能**\n\n"
-            "1. **克隆文件**\n"
-            "   `/clone_apple <Drive链接>` - 克隆到您的 Drive\n\n"
-            "2. **删除文件**\n"
-            "   `/delete_apple <Drive链接>` - 删除文件\n\n"
-            "3. **搜索文件**\n"
-            "   `/searchdrive <关键词>` - 搜索 Drive\n\n"
-            "4. **清空回收站**\n"
-            "   `/emptytrash_apple` - 永久删除\n\n"
-            "💡 提示：使用简写命令更快捷（/ca, /da, /eta）"
+            f"**推送通知**\n"
+            f"{'✅ 开启' if settings['notifications'] else '⚠️ 关闭'}\n\n"
+            "**通知类型**\n"
+            "• 上传完成通知\n"
+            "• 任务失败通知\n"
+            "• 系统消息\n\n"
+            "开启通知以及时了解任务状态"
         )
     )
     
     keyboard = AppleUI.create_keyboard([
         [
-            AppleUI.create_button("克隆文件", callback_data="clone_file", icon=AppleUI.ICONS["copy"]),
-            AppleUI.create_button("删除文件", callback_data="delete_file", icon=AppleUI.ICONS["delete"])
+            AppleUI.create_button(
+                "开启通知" if not settings['notifications'] else "关闭通知",
+                callback_data="toggle_notifications",
+                icon="🔔" if not settings['notifications'] else "🔕"
+            )
         ],
-        [
-            AppleUI.create_button("搜索文件", callback_data="search_files", icon=AppleUI.ICONS["search"]),
-            AppleUI.create_button("清空回收站", callback_data="empty_trash", icon="🗑")
-        ],
-        [AppleUI.create_button("返回设置", callback_data="back_settings", icon=AppleUI.ICONS["back"])]
+        [AppleUI.create_button("返回设置", callback_data="back_to_settings", icon=AppleUI.ICONS["back"])]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard)
     await callback_query.answer()
 
 
-@Client.on_callback_query(filters.regex(r"^settings_commands$"))
-async def settings_commands_callback(client: Client, callback_query: CallbackQuery):
-    """快捷命令设置"""
+@Client.on_callback_query(filters.regex(r"^toggle_notifications$"))
+async def toggle_notifications_callback(client: Client, callback_query: CallbackQuery):
+    """
+    切换通知状态
+    """
+    user_id = callback_query.from_user.id
+    settings = get_user_settings(user_id)
+    
+    new_state = not settings['notifications']
+    set_user_setting(user_id, 'notifications', new_state)
+    
+    await callback_query.answer(
+        f"✅ 通知已{'开启' if new_state else '关闭'}"
+    )
+    
+    # 刷新通知设置页面
+    await settings_notifications_callback(client, callback_query)
+
+
+@Client.on_callback_query(filters.regex(r"^settings_advanced$"))
+async def settings_advanced_callback(client: Client, callback_query: CallbackQuery):
+    """
+    高级设置
+    """
+    user_id = callback_query.from_user.id
+    settings = get_user_settings(user_id)
+    
+    # 计算存储使用情况
+    download_dir = DOWNLOAD_DIRECTORY
+    total_size = 0
+    if os.path.exists(download_dir):
+        for dirpath, dirnames, filenames in os.walk(download_dir):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                if os.path.exists(fp):
+                    total_size += os.path.getsize(fp)
+    
+    storage_mb = total_size / (1024 * 1024)
+    
     text = AppleUI.format_message(
-        title="快捷命令",
-        icon=AppleUI.ICONS["menu"],
+        title="高级设置",
+        icon="⚙️",
         content=(
-            "**Apple 风格命令快速参考**\n\n"
-            "**基础功能**\n"
-            "`/start` - 欢迎页面\n"
-            "`/help` - 帮助信息\n"
-            "`/sa` - 设置面板\n\n"
-            "**授权管理**\n"
-            "`/aa` - Google Drive 授权\n"
-            "`/ra` - 撤销授权\n\n"
-            "**文件操作**\n"
-            "`/ma <URL>` - 镜像任务\n"
-            "`/ca <链接>` - 克隆文件\n"
-            "`/da <链接>` - 删除文件\n"
-            "`/eta` - 清空回收站\n\n"
-            "💡 所有命令都支持完整名称和简写"
+            f"**存储管理**\n"
+            f"本地缓存: {storage_mb:.1f} MB\n\n"
+            f"**自动删除**\n"
+            f"{'✅ 开启' if settings['auto_delete'] else '⚠️ 关闭'}\n\n"
+            f"**文件大小限制**\n"
+            f"{settings['max_file_size'] // (1024**3)} GB\n\n"
+            "高级功能配置"
         )
     )
     
     keyboard = AppleUI.create_keyboard([
-        [AppleUI.create_button("复制全部命令", callback_data="copy_commands", icon=AppleUI.ICONS["copy"])],
-        [AppleUI.create_button("返回设置", callback_data="back_settings", icon=AppleUI.ICONS["back"])]
+        [
+            AppleUI.create_button(
+                "开启自动删除" if not settings['auto_delete'] else "关闭自动删除",
+                callback_data="toggle_auto_delete",
+                icon="🗑"
+            )
+        ],
+        [AppleUI.create_button("清理缓存", callback_data="clear_cache", icon="🧹")],
+        [AppleUI.create_button("文件大小限制", callback_data="set_file_limit", icon="📏")],
+        [AppleUI.create_button("返回设置", callback_data="back_to_settings", icon=AppleUI.ICONS["back"])]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard)
     await callback_query.answer()
 
 
-@Client.on_callback_query(filters.regex(r"^copy_commands$"))
-async def copy_commands_callback(client: Client, callback_query: CallbackQuery):
-    """复制所有命令"""
-    commands_text = (
-        "/start - 欢迎页面\n"
-        "/help - 帮助信息\n"
-        "/sa - 设置面板\n"
-        "/aa - Google Drive 授权\n"
-        "/ra - 撤销授权\n"
-        "/ma <URL> - 镜像任务\n"
-        "/ca <链接> - 克隆文件\n"
-        "/da <链接> - 删除文件\n"
-        "/eta - 清空回收站"
+@Client.on_callback_query(filters.regex(r"^toggle_auto_delete$"))
+async def toggle_auto_delete_callback(client: Client, callback_query: CallbackQuery):
+    """
+    切换自动删除
+    """
+    user_id = callback_query.from_user.id
+    settings = get_user_settings(user_id)
+    
+    new_state = not settings['auto_delete']
+    set_user_setting(user_id, 'auto_delete', new_state)
+    
+    await callback_query.answer(
+        f"✅ 自动删除已{'开启' if new_state else '关闭'}"
     )
     
-    await callback_query.answer("✅ 命令列表已复制，请查看下方消息", show_alert=False)
-    await client.send_message(
-        callback_query.from_user.id,
-        f"**快捷命令列表**\n\n{commands_text}",
-        parse_mode="Markdown"
+    # 刷新高级设置页面
+    await settings_advanced_callback(client, callback_query)
+
+
+@Client.on_callback_query(filters.regex(r"^clear_cache$"))
+async def clear_cache_callback(client: Client, callback_query: CallbackQuery):
+    """
+    清理缓存
+    """
+    if callback_query.from_user.id not in SUDO_USERS:
+        await callback_query.answer("⚠️ 需要管理员权限", show_alert=True)
+        return
+    
+    text = AppleUI.format_message(
+        title="清理缓存",
+        icon="🧹",
+        content=(
+            "确定要清理所有本地缓存吗？\n\n"
+            "这将删除：\n"
+            "• 所有临时下载文件\n"
+            "• 上传缓存\n\n"
+            "⚠️ 此操作不可撤销"
+        )
     )
+    
+    keyboard = AppleUI.create_keyboard([
+        [AppleUI.create_button("确认清理", callback_data="confirm_clear_cache", icon="🗑")],
+        [AppleUI.create_button("取消", callback_data="settings_advanced", icon=AppleUI.ICONS["cancel"])]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard)
+    await callback_query.answer()
 
 
-@Client.on_callback_query(filters.regex(r"^back_settings$"))
-async def back_settings_callback(client: Client, callback_query: CallbackQuery):
-    """返回设置主页面"""
+@Client.on_callback_query(filters.regex(r"^confirm_clear_cache$"))
+async def confirm_clear_cache_callback(client: Client, callback_query: CallbackQuery):
+    """
+    确认清理缓存
+    """
+    if callback_query.from_user.id not in SUDO_USERS:
+        await callback_query.answer("⚠️ 需要管理员权限", show_alert=True)
+        return
+    
+    try:
+        # 清理下载目录
+        download_dir = DOWNLOAD_DIRECTORY
+        if os.path.exists(download_dir):
+            import shutil
+            for item in os.listdir(download_dir):
+                item_path = os.path.join(download_dir, item)
+                if os.path.isfile(item_path):
+                    os.unlink(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+        
+        success = AppleUI.create_success_message(
+            title="清理完成",
+            message="缓存已成功清理"
+        )
+        
+        text = AppleUI.format_message(
+            title=success["title"],
+            content=success["message"],
+            footer="💾 本地存储已释放"
+        )
+        
+        keyboard = AppleUI.create_keyboard([
+            [AppleUI.create_button("返回设置", callback_data="settings_advanced", icon=AppleUI.ICONS["back"])]
+        ])
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
+        await callback_query.answer("✅ 清理完成")
+        
+    except Exception as e:
+        LOGGER.exception(f"Failed to clear cache: {e}")
+        await callback_query.answer("❌ 清理失败", show_alert=True)
+
+
+@Client.on_callback_query(filters.regex(r"^back_to_settings$"))
+async def back_to_settings_callback(client: Client, callback_query: CallbackQuery):
+    """
+    返回设置主页
+    """
+    # 模拟 /settings_apple 命令
+    message = callback_query.message
+    message.from_user = callback_query.from_user
+    message.text = "/settings_apple"
+    
+    user_id = callback_query.from_user.id
+    settings = get_user_settings(user_id)
+    
+    is_authorized = gDriveDB.is_authorized(user_id)
+    auth_status = "✅ 已连接" if is_authorized else "⚠️ 未连接"
+    
     text = AppleUI.format_message(
         title="设置",
         icon=AppleUI.ICONS["settings"],
-        subtitle="自定义您的体验",
-        content="选择下方选项进行配置"
+        subtitle="自定义您的上传体验",
+        content=(
+            f"**Google Drive 状态**\n"
+            f"{auth_status}\n\n"
+            f"**当前设置**\n"
+            f"🌓 主题: {settings['theme']}\n"
+            f"🌍 语言: {settings['language']}\n"
+            f"🔔 通知: {'开启' if settings['notifications'] else '关闭'}\n"
+            f"🗑 自动删除: {'开启' if settings['auto_delete'] else '关闭'}\n\n"
+            f"点击下方选项进行配置"
+        )
     )
-    
-    # 检查授权状态
-    is_auth = is_authorized(str(callback_query.from_user.id))
-    auth_status = "✅ 已授权" if is_auth else "❌ 未授权"
     
     keyboard = AppleUI.create_keyboard([
         [
-            AppleUI.create_button(
-                f"Google Drive {auth_status}",
-                callback_data="settings_auth",
-                icon=AppleUI.ICONS["gdrive"]
-            )
+            AppleUI.create_button("Google Drive", callback_data="settings_gdrive", icon=AppleUI.ICONS["gdrive"]),
+            AppleUI.create_button("外观", callback_data="settings_appearance", icon="🌓")
         ],
         [
-            AppleUI.create_button(
-                "上传设置",
-                callback_data="settings_upload",
-                icon=AppleUI.ICONS["upload"]
-            ),
-            AppleUI.create_button(
-                "文件管理",
-                callback_data="settings_files",
-                icon=AppleUI.ICONS["folder"]
-            )
+            AppleUI.create_button("通知", callback_data="settings_notifications", icon="🔔"),
+            AppleUI.create_button("高级", callback_data="settings_advanced", icon="⚙️")
         ],
         [
-            AppleUI.create_button(
-                "快捷命令",
-                callback_data="settings_commands",
-                icon=AppleUI.ICONS["menu"]
-            ),
-            AppleUI.create_button(
-                "关于",
-                callback_data="show_about",
-                icon=AppleUI.ICONS["info"]
-            )
-        ],
-        [AppleUI.create_button("返回主页", callback_data="back_home", icon=AppleUI.ICONS["home"])]
+            AppleUI.create_button("关于", callback_data="show_about", icon=AppleUI.ICONS["info"]),
+            AppleUI.create_button("返回", callback_data="back_home", icon=AppleUI.ICONS["home"])
+        ]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard)
-    await callback_query.answer()
-
-
-# 快捷操作回调
-
-@Client.on_callback_query(filters.regex(r"^create_mirror$"))
-async def create_mirror_callback(client: Client, callback_query: CallbackQuery):
-    """创建镜像任务引导"""
-    text = AppleUI.format_message(
-        title="创建镜像任务",
-        icon=AppleUI.ICONS["mirroring"],
-        content=(
-            "**使用以下命令创建任务：**\n\n"
-            "`/mirror_apple <URL>`\n\n"
-            "或使用简写：\n"
-            "`/ma <URL>`\n\n"
-            "💡 示例：\n"
-            "`/ma https://example.com/file.zip`"
-        )
-    )
-    keyboard = AppleUI.create_keyboard([
-        [AppleUI.create_button("返回", callback_data="settings_upload", icon=AppleUI.ICONS["back"])]
-    ])
-    await callback_query.message.edit_text(text, reply_markup=keyboard)
-    await callback_query.answer()
-
-
-@Client.on_callback_query(filters.regex(r"^set_folder$"))
-async def set_folder_callback(client: Client, callback_query: CallbackQuery):
-    """设置文件夹引导"""
-    text = AppleUI.format_message(
-        title="设置上传文件夹",
-        icon=AppleUI.ICONS["folder"],
-        content=(
-            "**使用以下命令设置：**\n\n"
-            "`/setfolder`\n\n"
-            "然后按照提示选择文件夹"
-        )
-    )
-    keyboard = AppleUI.create_keyboard([
-        [AppleUI.create_button("返回", callback_data="settings_upload", icon=AppleUI.ICONS["back"])]
-    ])
-    await callback_query.message.edit_text(text, reply_markup=keyboard)
-    await callback_query.answer()
-
-
-@Client.on_callback_query(filters.regex(r"^clone_file$"))
-async def clone_file_callback(client: Client, callback_query: CallbackQuery):
-    """克隆文件引导"""
-    text = AppleUI.format_message(
-        title="克隆 Drive 文件",
-        icon=AppleUI.ICONS["copy"],
-        content=(
-            "**使用以下命令克隆：**\n\n"
-            "`/clone_apple <Drive链接>`\n\n"
-            "或使用简写：\n"
-            "`/ca <Drive链接>`"
-        )
-    )
-    keyboard = AppleUI.create_keyboard([
-        [AppleUI.create_button("返回", callback_data="settings_files", icon=AppleUI.ICONS["back"])]
-    ])
-    await callback_query.message.edit_text(text, reply_markup=keyboard)
-    await callback_query.answer()
-
-
-@Client.on_callback_query(filters.regex(r"^delete_file$"))
-async def delete_file_callback(client: Client, callback_query: CallbackQuery):
-    """删除文件引导"""
-    text = AppleUI.format_message(
-        title="删除 Drive 文件",
-        icon=AppleUI.ICONS["delete"],
-        content=(
-            "**使用以下命令删除：**\n\n"
-            "`/delete_apple <Drive链接>`\n\n"
-            "或使用简写：\n"
-            "`/da <Drive链接>`\n\n"
-            "⚠️ 注意：文件将移入回收站"
-        )
-    )
-    keyboard = AppleUI.create_keyboard([
-        [AppleUI.create_button("返回", callback_data="settings_files", icon=AppleUI.ICONS["back"])]
-    ])
-    await callback_query.message.edit_text(text, reply_markup=keyboard)
-    await callback_query.answer()
-
-
-@Client.on_callback_query(filters.regex(r"^search_files$"))
-async def search_files_callback(client: Client, callback_query: CallbackQuery):
-    """搜索文件引导"""
-    text = AppleUI.format_message(
-        title="搜索 Drive 文件",
-        icon=AppleUI.ICONS["search"],
-        content=(
-            "**使用以下命令搜索：**\n\n"
-            "`/searchdrive <关键词>`\n\n"
-            "或使用简写：\n"
-            "`/sdrive <关键词>`"
-        )
-    )
-    keyboard = AppleUI.create_keyboard([
-        [AppleUI.create_button("返回", callback_data="settings_files", icon=AppleUI.ICONS["back"])]
-    ])
     await callback_query.message.edit_text(text, reply_markup=keyboard)
     await callback_query.answer()
