@@ -147,6 +147,7 @@ cd google-drive-telegram-bot
 ```sh 
 pip3 install -r requirements.txt
 ```
+- When redeploying or updating the bot, rerun the requirements installation to pull newly added dependencies (e.g., `py115`, `requests`).
 
 ### Configuration
 

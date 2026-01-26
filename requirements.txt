@@ -1,4 +1,7 @@
 pyrogram
+p115client
+sqlitetools
+aiofiles
 TgCrypto
 google-api-python-client>=2.187.0
 google-auth-httplib2
